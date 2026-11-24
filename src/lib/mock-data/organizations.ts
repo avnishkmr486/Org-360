@@ -15,6 +15,6 @@ export const organizationSeed: Organization = {
   email: "operations@altametrics.example",
   phone: "+91 120 000 0000",
   address: "India Delivery Center",
-  logoUrl: "/brand/altametrics-icon.svg",
+  logoUrl: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/brand/altametrics-icon.svg`,
   foundedYear: 2001,
 };

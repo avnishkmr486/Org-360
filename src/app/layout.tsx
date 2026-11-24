@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     template: "%s · Organization 360",
   },
   description: "Process. Performance. Accountability. — Enterprise process management & compliance platform for Altametrics Pvt Ltd.",
-  icons: { icon: "/brand/altametrics-icon.svg" },
+  icons: { icon: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/brand/altametrics-icon.svg` },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

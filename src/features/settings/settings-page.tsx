@@ -45,7 +45,7 @@ import { MenuConfigPanel } from "./menu-config-section";
 import { formatBytes } from "@/lib/utils/format";
 import { cn } from "@/lib/utils";
 
-const DEFAULT_LOGO = "/brand/altametrics-icon.svg";
+const DEFAULT_LOGO = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/brand/altametrics-icon.svg`;
 const MAX_LOGO_BYTES = 200 * 1024;
 
 const SECTIONS = [

@@ -1,9 +1,24 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 /** Assignments now live inside Process Management; old links and bookmarks land on the right tab. */
-export default async function AssignmentsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const params = new URLSearchParams();
-  for (const [k, v] of Object.entries(await searchParams)) if (typeof v === "string") params.set(k, v);
-  params.set("tab", "assignments");
-  redirect(`/processes?${params.toString()}`);
+function Redirect() {
+  const router = useRouter();
+  const search = useSearchParams();
+  useEffect(() => {
+    const params = new URLSearchParams(search.toString());
+    params.set("tab", "assignments");
+    router.replace(`/processes?${params.toString()}`);
+  }, [router, search]);
+  return null;
+}
+
+export default function AssignmentsPage() {
+  return (
+    <Suspense fallback={null}>
+      <Redirect />
+    </Suspense>
+  );
 }
