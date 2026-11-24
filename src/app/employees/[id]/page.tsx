@@ -1,3 +1,4 @@
+import { WithRouteId } from "@/components/common/with-route-id";
 import { employeeParams } from "@/lib/static-params";
 import { Suspense } from "react";
 import type { Metadata } from "next";
@@ -12,7 +13,7 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
   const { id } = await params;
   return (
     <Suspense fallback={<PageSkeleton />}>
-      <EmployeeProfile id={decodeURIComponent(id)} />
+      <WithRouteId Component={EmployeeProfile as never} prop="id" id={decodeURIComponent(id)} />
     </Suspense>
   );
 }

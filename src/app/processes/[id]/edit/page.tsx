@@ -1,3 +1,4 @@
+import { WithRouteId } from "@/components/common/with-route-id";
 import { processParams } from "@/lib/static-params";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/common/states";
@@ -11,7 +12,7 @@ export default async function EditProcessPage({ params }: { params: Promise<{ id
   const { id } = await params;
   return (
     <Suspense fallback={<PageSkeleton />}>
-      <ProcessWizard processId={decodeURIComponent(id)} />
+      <WithRouteId Component={ProcessWizard as never} prop="processId" id={decodeURIComponent(id)} />
     </Suspense>
   );
 }

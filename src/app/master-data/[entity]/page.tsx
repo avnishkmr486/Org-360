@@ -1,3 +1,4 @@
+import { WithRouteId } from "@/components/common/with-route-id";
 import { entityParams } from "@/lib/static-params";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/common/states";
@@ -11,7 +12,7 @@ export default async function MasterEntityRoute({ params }: { params: Promise<{ 
   const { entity } = await params;
   return (
     <Suspense fallback={<PageSkeleton />}>
-      <MasterEntityPage slug={entity} />
+      <WithRouteId Component={MasterEntityPage as never} prop="slug" id={entity} />
     </Suspense>
   );
 }

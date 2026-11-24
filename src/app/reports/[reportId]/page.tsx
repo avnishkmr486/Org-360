@@ -1,3 +1,4 @@
+import { WithRouteId } from "@/components/common/with-route-id";
 import { reportParams } from "@/lib/static-params";
 import { Suspense } from "react";
 import { ReportViewer } from "@/features/reports/report-views";
@@ -11,7 +12,7 @@ export default async function Page({ params }: { params: Promise<{ reportId: str
   const { reportId } = await params;
   return (
     <Suspense fallback={<PageSkeleton />}>
-      <ReportViewer reportId={reportId} />
+      <WithRouteId Component={ReportViewer as never} prop="reportId" id={reportId} />
     </Suspense>
   );
 }

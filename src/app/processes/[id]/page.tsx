@@ -1,3 +1,4 @@
+import { WithRouteId } from "@/components/common/with-route-id";
 import { processParams } from "@/lib/static-params";
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/common/states";
@@ -11,7 +12,7 @@ export default async function ProcessDetailPage({ params }: { params: Promise<{ 
   const { id } = await params;
   return (
     <Suspense fallback={<PageSkeleton />}>
-      <ProcessDetail id={decodeURIComponent(id)} />
+      <WithRouteId Component={ProcessDetail as never} prop="id" id={decodeURIComponent(id)} />
     </Suspense>
   );
 }
