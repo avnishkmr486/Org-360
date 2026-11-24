@@ -5,8 +5,6 @@ import { getDb } from "@/lib/store/mock-db";
 import { switchPersona } from "@/hooks/use-data";
 import { useRouter } from "next/navigation";
 import { usePath } from "@/hooks/use-path";
-import { ChangePasswordDialog } from "@/features/auth/change-password-dialog";
-import { usesDefaultPassword } from "@/lib/auth/accounts";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 import { PageSkeleton, RestrictedState } from "@/components/common/states";
@@ -34,14 +32,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  return <Shell signedInId={signedIn.id} defaultPassword={usesDefaultPassword(signedIn)}>{children}</Shell>;
+  return <Shell>{children}</Shell>;
 }
 
-function Shell({ children, signedInId, defaultPassword }: { children: ReactNode; signedInId: string; defaultPassword: boolean }) {
+function Shell({ children }: { children: ReactNode }) {
   const { role } = useCurrentUser();
   const pathname = usePath();
   const allowed = canAccessPath(role, pathname);
-  const [dismissed, setDismissed] = useState(false);
 
   // Demo links: "?persona=USR-06" opens the app as that user — Super Admin only.
   const signedIn = useSignedInUser();
@@ -62,7 +59,6 @@ function Shell({ children, signedInId, defaultPassword }: { children: ReactNode;
           Organization 360 · Altametrics Pvt Ltd. · Process. Performance. Accountability. · Demo build with mock data
         </footer>
       </div>
-      <ChangePasswordDialog userId={signedInId} open={defaultPassword && !dismissed} onOpenChange={(o) => !o && setDismissed(true)} forced />
     </div>
   );
 }
