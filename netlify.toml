@@ -7,6 +7,8 @@
 [build.environment]
   NODE_VERSION = "22"
   NEXT_TELEMETRY_DISABLED = "1"
+  NEXT_PUBLIC_SUPABASE_URL = "https://yczldmywroucxvkxwyur.supabase.co"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_znG3EPnjBBcHe5gVqjHmVw_bISkt0aJ"
 
 # Security headers for every response.
 [[headers]]

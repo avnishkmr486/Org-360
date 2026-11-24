@@ -23,6 +23,8 @@ jobs:
       - run: npm run build
         env:
           GITHUB_PAGES: "1"
+          NEXT_PUBLIC_SUPABASE_URL: https://yczldmywroucxvkxwyur.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_znG3EPnjBBcHe5gVqjHmVw_bISkt0aJ
           NEXT_TELEMETRY_DISABLED: "1"
       - run: touch out/.nojekyll
       - uses: actions/upload-pages-artifact@v3
