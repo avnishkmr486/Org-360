@@ -26,15 +26,27 @@ export async function saveEcoType(input: { id?: string; name: string; tone: EcoT
   }));
 }
 
-export async function removeEcoType(id: string): Promise<void> {
+/** Remove a type. One that entries still use can only go with `cascade`, which a Super Admin may do: its entries and their links go too. */
+export async function removeEcoType(id: string, cascade = false): Promise<void> {
   await latency(150);
   guard();
   const db = getDb();
   const t = db.ecoTypes.find((x) => x.id === id);
   if (!t) return;
-  const used = db.ecoEntities.filter((e) => e.typeId === id).length;
-  if (used) throw new RepositoryError(`${used} ${used === 1 ? "entry uses" : "entries use"} "${t.name}". Move or delete them first.`);
-  write((d) => ({ patch: { ecoTypes: d.ecoTypes.filter((x) => x.id !== id) }, audit: [auditEntry(d, "Ecosystem", "Type Removed", id, t.name, `Removed type "${t.name}".`)] }));
+  const members = db.ecoEntities.filter((e) => e.typeId === id);
+  if (members.length && !(cascade && can(currentActor().role, "ecosystem.delete_linked"))) {
+    throw new RepositoryError(`${members.length} ${members.length === 1 ? "entry uses" : "entries use"} "${t.name}". Move or delete them first${cascade ? "" : ", or ask a Super Admin to delete the type with its entries"}.`);
+  }
+  const gone = new Set(members.map((e) => e.id));
+  const links = db.ecoRelations.filter((r) => gone.has(r.fromId) || gone.has(r.toId)).length;
+  write((d) => ({
+    patch: {
+      ecoTypes: d.ecoTypes.filter((x) => x.id !== id),
+      ecoEntities: d.ecoEntities.filter((e) => !gone.has(e.id)),
+      ecoRelations: d.ecoRelations.filter((r) => !gone.has(r.fromId) && !gone.has(r.toId)),
+    },
+    audit: [auditEntry(d, "Ecosystem", "Type Removed", id, t.name, `Removed type "${t.name}"${members.length ? ` with ${members.length} entr${members.length === 1 ? "y" : "ies"} and ${links} link${links === 1 ? "" : "s"}` : ""}.`)],
+  }));
 }
 
 /* -------------------------------- entities --------------------------------- */

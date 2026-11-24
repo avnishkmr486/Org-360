@@ -503,6 +503,18 @@ async function main() {
     assert.equal(getDb().ecoRelations.length, before - mine);
     await assertNoDanglingRefs();
 
+    // A type that entries use: only a Super Admin can delete it, and its entries and links go with it
+    const emea2 = await repo.saveEntity({ typeId: regionId, name: "APAC", description: "", status: "active", ownerId: null, contactName: "", contactEmail: "", contactPhone: "", notes: "" });
+    await repo.linkEntities(emea2, [rid], "sits beside");
+    await assert.rejects(repo.removeEcoType(regionId, true), /use/);
+    setUiState({ currentUserId: "USR-01" });
+    await assert.rejects(repo.removeEcoType(regionId), /use/);
+    await repo.removeEcoType(regionId, true);
+    setUiState({ currentUserId: "USR-02" });
+    assert.ok(!getDb().ecoTypes.some((x) => x.id === regionId));
+    assert.ok(!getDb().ecoEntities.some((e) => e.typeId === regionId));
+    await assertNoDanglingRefs();
+
     // Deleting an employee clears the owner it held
     const owned = getDb().ecoEntities.find((e) => e.ownerId)!;
     await repo.bulkDelete("employees", [owned.ownerId!]);

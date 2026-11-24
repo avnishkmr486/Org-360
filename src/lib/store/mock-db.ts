@@ -131,6 +131,7 @@ function snapshotState(): PersistedState | null {
 }
 
 function persistNow() {
+  if (!isBrowser) return;
   const state = snapshotState();
   if (!state) return;
   try {

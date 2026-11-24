@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox, MultiSelect } from "@/components/common/filters";
 import { ToneBadge } from "@/components/common/badges";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { useCurrentUser, useDatabase } from "@/hooks/use-data";
 import { linkEntities, removeEcoType, removeEntities, saveEcoType, saveEntity } from "@/lib/repositories";
 import { RELATION_SUGGESTIONS, referencesTo } from "@/lib/calculations/ecosystem";
@@ -225,15 +226,23 @@ function LinkForm({ fromId: initial, onClose }: { fromId: string | null; onClose
 
 export function TypesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const db = useDatabase();
+  const { can } = useCurrentUser();
   const [name, setName] = useState("");
   const [tone, setTone] = useState<EcoType["tone"]>("info");
   const [editing, setEditing] = useState<EcoType | null>(null);
+  const [cascading, setCascading] = useState<EcoType | null>(null);
+  const memberCount = (typeId: string) => db.ecoEntities.filter((e) => e.typeId === typeId).length;
+  const cascadeLinks = (typeId: string) => {
+    const ids = new Set(db.ecoEntities.filter((e) => e.typeId === typeId).map((e) => e.id));
+    return db.ecoRelations.filter((r) => ids.has(r.fromId) || ids.has(r.toId)).length;
+  };
   const reset = () => {
     setEditing(null);
     setName("");
     setTone("info");
   };
   return (
+    <>
     <Dialog
       open={open}
       onOpenChange={(o) => {
@@ -263,7 +272,7 @@ export function TypesDialog({ open, onOpenChange }: { open: boolean; onOpenChang
               >
                 <Pencil />
               </Button>
-              <Button variant="ghost" size="icon-sm" aria-label={`Delete ${t.name}`} onClick={() => removeEcoType(t.id).then(() => toast.success("Type removed")).catch(fail("Could not remove"))}>
+              <Button variant="ghost" size="icon-sm" aria-label={`Delete ${t.name}`} onClick={() => (memberCount(t.id) && can("ecosystem.delete_linked") ? setCascading(t) : removeEcoType(t.id).then(() => toast.success("Type removed")).catch(fail("Could not remove")))}>
                 <Trash2 />
               </Button>
             </li>
@@ -310,6 +319,18 @@ export function TypesDialog({ open, onOpenChange }: { open: boolean; onOpenChang
         </form>
       </DialogContent>
     </Dialog>
+      <ConfirmDialog
+        open={cascading !== null}
+        onOpenChange={(o) => !o && setCascading(null)}
+        title={`Delete type “${cascading?.name ?? ""}”?`}
+        description={cascading ? `${memberCount(cascading.id)} entr${memberCount(cascading.id) === 1 ? "y" : "ies"} of this type and ${cascadeLinks(cascading.id)} link${cascadeLinks(cascading.id) === 1 ? "" : "s"} to them will be deleted too. This can’t be undone.` : ""}
+        confirmLabel="Delete type and entries"
+        destructive
+        onConfirm={async () => {
+          await removeEcoType(cascading!.id, true).then(() => toast.success("Type removed")).catch(fail("Could not remove"));
+        }}
+      />
+    </>
   );
 }
 
