@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { usePath } from "@/hooks/use-path";
 
 /**
  * Filter state stored in the URL query string — makes every filtered view
@@ -13,7 +14,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 export function useUrlFilters<K extends string>(keys: readonly K[]) {
   const params = useSearchParams();
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePath();
 
   const values = useMemo(() => {
     const out = {} as Record<K, string>;

@@ -3,7 +3,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { getDb } from "@/lib/store/mock-db";
 import { switchPersona } from "@/hooks/use-data";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { usePath } from "@/hooks/use-path";
 import { ChangePasswordDialog } from "@/features/auth/change-password-dialog";
 import { usesDefaultPassword } from "@/lib/auth/accounts";
 import { Sidebar } from "./sidebar";
@@ -15,7 +16,7 @@ import { ROLE_LABELS } from "@/lib/auth/permissions";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const hydrated = useHydrated();
-  const pathname = usePathname();
+  const pathname = usePath();
   const router = useRouter();
   const signedIn = useSignedInUser();
   const onLogin = pathname === "/login";
@@ -38,7 +39,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 function Shell({ children, signedInId, defaultPassword }: { children: ReactNode; signedInId: string; defaultPassword: boolean }) {
   const { role } = useCurrentUser();
-  const pathname = usePathname();
+  const pathname = usePath();
   const allowed = canAccessPath(role, pathname);
   const [dismissed, setDismissed] = useState(false);
 

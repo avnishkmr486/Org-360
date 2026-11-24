@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePath } from "@/hooks/use-path";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 export function SidebarNav({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
   const { nav } = useCurrentUser();
-  const pathname = usePathname();
+  const pathname = usePath();
   return (
     <nav className="scrollbar-thin flex-1 space-y-5 overflow-y-auto px-3 py-4" aria-label="Main navigation">
       {nav.map((section) => (
