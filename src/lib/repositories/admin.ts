@@ -1,0 +1,170 @@
+/** Notifications, master data, users, settings and audit repositories. */
+import type {
+  AppNotification,
+  AppRole,
+  AppSettings,
+  AppUser,
+  AuditLog,
+  Band,
+  Database,
+  Designation,
+  FrequencyDefinition,
+  ProcessCategory,
+  RecordStatus,
+} from "@/types";
+import { auditEntry, getDb, latency, nowIso, replaceById, RepositoryError, write } from "./core";
+import { resetDb } from "@/lib/store/mock-db";
+import { uid } from "@/lib/utils/random";
+
+/* ----------------------------- Notifications ---------------------------- */
+
+export function notificationsFor(db: Pick<Database, "notifications">, role: AppRole, employeeId: string | null): AppNotification[] {
+  const admin = role === "super_admin" || role === "administrator" || role === "senior_management";
+  return db.notifications.filter((n) => {
+    if (n.audienceRoles.length && !n.audienceRoles.includes(role)) return false;
+    if (n.recipientEmployeeId && !admin && n.recipientEmployeeId !== employeeId) {
+      // Managers still see team-member alerts for overdue items.
+      return role !== "employee" && n.type === "overdue";
+    }
+    return true;
+  });
+}
+
+export async function getNotifications(): Promise<AppNotification[]> {
+  await latency(60);
+  return getDb().notifications;
+}
+
+export async function markNotificationRead(id: string, read = true): Promise<void> {
+  write((d) => ({ patch: { notifications: replaceById(d.notifications, id, (n) => ({ ...n, read })) } }));
+}
+
+export async function markAllNotificationsRead(ids: string[]): Promise<void> {
+  const set = new Set(ids);
+  write((d) => ({ patch: { notifications: d.notifications.map((n) => (set.has(n.id) ? { ...n, read: true } : n)) } }));
+}
+
+export async function createNotification(n: Omit<AppNotification, "id" | "createdAt" | "read">): Promise<void> {
+  write((d) => ({ patch: { notifications: [{ ...n, id: uid("NTF"), createdAt: nowIso(), read: false }, ...d.notifications] } }));
+}
+
+/* ------------------------------ Master data ----------------------------- */
+
+export interface MasterTables {
+  bands: Band;
+  processCategories: ProcessCategory;
+  designations: Designation;
+  frequencies: FrequencyDefinition;
+}
+export type MasterTable = keyof MasterTables;
+
+const MASTER_PREFIX: Record<MasterTable, string> = {
+  bands: "BAND",
+  processCategories: "CAT",
+  designations: "DES",
+  frequencies: "FRQ",
+};
+
+export const MASTER_LABELS: Record<MasterTable, string> = {
+  bands: "Employee Band",
+  processCategories: "Process Category",
+  designations: "Designation",
+  frequencies: "Process Frequency",
+};
+
+export async function upsertMasterRecord<T extends MasterTable>(table: T, record: Omit<MasterTables[T], "id"> & { id?: string }): Promise<MasterTables[T]> {
+  await latency();
+  let saved: MasterTables[T] | undefined;
+  write((d) => {
+    const items = d[table] as unknown as MasterTables[T][];
+    const name = (record as { name: string }).name.trim();
+    if (!name) throw new RepositoryError("Name is required.");
+    if (items.some((i) => i.id !== record.id && (i as { name: string }).name.toLowerCase() === name.toLowerCase())) {
+      throw new RepositoryError(`${MASTER_LABELS[table]} "${name}" already exists.`);
+    }
+    let next: MasterTables[T][];
+    if (record.id && items.some((i) => i.id === record.id)) {
+      next = items.map((i) => (i.id === record.id ? (saved = { ...i, ...record, name } as MasterTables[T]) : i));
+    } else {
+      if (table === "frequencies") throw new RepositoryError("Frequencies are system-defined; edit or deactivate existing ones.");
+      const max = items.reduce((m, i) => Math.max(m, Number(i.id.replace(/\D/g, "")) || 0), 0);
+      saved = { ...record, name, id: `${MASTER_PREFIX[table]}-${String(max + 1).padStart(2, "0")}` } as MasterTables[T];
+      next = [...items, saved];
+    }
+    return {
+      patch: { [table]: next } as Partial<Database>,
+      audit: [auditEntry(d, "Master Data", record.id ? "Updated" : "Created", saved!.id, name, `${MASTER_LABELS[table]} ${record.id ? "updated" : "created"}.`)],
+    };
+  });
+  return saved!;
+}
+
+export async function setMasterStatus(table: MasterTable, id: string, status: RecordStatus): Promise<void> {
+  await latency();
+  write((d) => {
+    const items = d[table] as unknown as { id: string; name: string; status: RecordStatus }[];
+    const next = replaceById(items, id, (i) => ({ ...i, status }));
+    const name = items.find((i) => i.id === id)?.name ?? id;
+    return { patch: { [table]: next } as Partial<Database>, audit: [auditEntry(d, "Master Data", status === "inactive" ? "Deactivated" : "Activated", id, name, `${MASTER_LABELS[table]} ${status === "inactive" ? "deactivated" : "activated"}.`)] };
+  });
+}
+
+/* --------------------------------- Users -------------------------------- */
+
+export type UserInput = Pick<AppUser, "name" | "email" | "role" | "employeeId" | "status">;
+
+export async function getUsers(): Promise<AppUser[]> {
+  await latency(60);
+  return getDb().users;
+}
+
+export async function createUser(input: UserInput): Promise<AppUser> {
+  await latency();
+  const db = getDb();
+  if (input.email && db.users.some((u) => u.email.toLowerCase() === input.email.toLowerCase())) throw new RepositoryError("A user with this email already exists.");
+  const max = db.users.reduce((m, u) => Math.max(m, Number(u.id.replace(/\D/g, "")) || 0), 0);
+  const user: AppUser = { ...input, id: `USR-${String(max + 1).padStart(2, "0")}`, lastActiveAt: nowIso() };
+  write((d) => ({ patch: { users: [...d.users, user] }, audit: [auditEntry(d, "Users", "Created", user.id, user.name, `User created with role ${input.role}.`)] }));
+  return user;
+}
+
+export async function updateUser(id: string, patch: Partial<UserInput>): Promise<void> {
+  await latency();
+  write((d) => {
+    if (patch.email && d.users.some((u) => u.id !== id && u.email.toLowerCase() === patch.email!.toLowerCase())) throw new RepositoryError("A user with this email already exists.");
+    const prev = d.users.find((u) => u.id === id);
+    const users = replaceById(d.users, id, (u) => ({ ...u, ...patch }));
+    const desc = patch.role && prev && patch.role !== prev.role ? `Role changed to ${patch.role}.` : patch.status ? `Status set to ${patch.status}.` : "User updated.";
+    return { patch: { users }, audit: [auditEntry(d, "Users", patch.role && prev?.role !== patch.role ? "Role Changed" : "Updated", id, prev?.name ?? id, desc)] };
+  });
+}
+
+/* -------------------------------- Settings ------------------------------ */
+
+export async function getSettings(): Promise<AppSettings> {
+  await latency(60);
+  return getDb().settings;
+}
+
+export async function updateSettings(patch: Partial<AppSettings>, description = "Settings updated."): Promise<void> {
+  await latency();
+  if (patch.thresholds) {
+    const { excellent, good, needsImprovement } = patch.thresholds;
+    if (!(excellent > good && good > needsImprovement && needsImprovement > 0 && excellent <= 100)) {
+      throw new RepositoryError("Thresholds must satisfy 100 ≥ Excellent > Good > Needs Improvement > 0.");
+    }
+  }
+  write((d) => ({ patch: { settings: { ...d.settings, ...patch } }, audit: [auditEntry(d, "Settings", "Updated", "SETTINGS", "Application settings", description)] }));
+}
+
+export async function resetDemoData(): Promise<void> {
+  await latency(300);
+  resetDb();
+}
+
+/* ---------------------------------- Audit ------------------------------- */
+
+export async function getAuditLogs(): Promise<AuditLog[]> {
+  await latency(60);
+  return getDb().auditLogs;
+}
