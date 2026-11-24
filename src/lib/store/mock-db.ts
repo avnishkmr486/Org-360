@@ -18,6 +18,23 @@ import { todayISO } from "@/lib/utils/dates";
 import { pullState, pushState, remoteEnabled } from "./remote";
 
 const STORAGE_KEY = "org360:db";
+/** Set while this browser holds changes the shared copy has not received yet. */
+const DIRTY_KEY = "org360:dirty";
+const isDirty = () => {
+  try {
+    return window.localStorage.getItem(DIRTY_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+const setDirty = (on: boolean) => {
+  try {
+    if (on) window.localStorage.setItem(DIRTY_KEY, "1");
+    else window.localStorage.removeItem(DIRTY_KEY);
+  } catch {
+    /* ignore */
+  }
+};
 const isBrowser = typeof window !== "undefined";
 
 /** Reference "today" for the session. */
@@ -139,6 +156,7 @@ function persistNow() {
   } catch (err) {
     console.warn("[org360] Demo data could not be saved to this browser (storage full or blocked).", err);
   }
+  if (remoteEnabled) setDirty(true);
   scheduleRemotePush();
 }
 
@@ -153,7 +171,15 @@ function scheduleRemotePush() {
   if (remoteTimer) clearTimeout(remoteTimer);
   remoteTimer = setTimeout(() => {
     const state = snapshotState();
-    if (state) pushState(state).catch((err) => console.warn("[org360] Could not save to Supabase.", err));
+    if (state) {
+      pushState(state)
+        .then(() => {
+          // Only clear the flag if nothing changed while the save was in flight.
+          if (!remoteTimer) setDirty(false);
+        })
+        .catch((err) => console.warn("[org360] Could not save to Supabase.", err));
+    }
+    remoteTimer = null;
   }, 1200);
 }
 
@@ -164,7 +190,9 @@ function pullRemote() {
   pulled = true;
   pullState<PersistedState>()
     .then((saved) => {
-      if (saved && !edited) {
+      // Unsent local changes (e.g. the page reloaded right after adding something) win over the shared copy and are sent on.
+      const keepLocal = isDirty();
+      if (saved && !edited && !keepLocal) {
         const db = restore(saved);
         if (db) {
           current = db;
@@ -178,7 +206,7 @@ function pullRemote() {
       }
       remoteReady = true;
       // First ever run against this project (or an incompatible saved version): publish what we have.
-      if (!saved || !restore(saved) || edited) scheduleRemotePush();
+      if (!saved || !restore(saved) || edited || keepLocal) scheduleRemotePush();
     })
     .catch((err) => console.warn("[org360] Supabase unavailable; working on this browser's copy.", err));
 }
@@ -190,7 +218,16 @@ function emit() {
 export function getDb(): Database {
   if (!current) {
     current = load();
-    if (isBrowser) setTimeout(pullRemote, 0);
+    if (isBrowser) {
+      setTimeout(pullRemote, 0);
+      // A navigation that reloads the page must not lose a change still waiting for its delayed save.
+      window.addEventListener("pagehide", () => {
+        if (persistTimer) {
+          clearTimeout(persistTimer);
+          persistNow();
+        }
+      });
+    }
   }
   return current;
 }
