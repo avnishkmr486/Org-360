@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable, type Column } from "@/components/tables/data-table";
+import { useCustomColumns, withCustomColumns } from "@/components/tables/custom-columns";
 import { FilterSelect, ResetFiltersButton, SearchInput } from "@/components/common/filters";
 import { KpiCard } from "@/components/common/kpi-card";
 import { PersonCell } from "@/components/common/user-avatar";
@@ -61,6 +62,7 @@ export function EcosystemPage() {
       (!q || `${e.name} ${e.description} ${e.contactName} ${e.contactEmail} ${L.empName(e.ownerId)}`.toLowerCase().includes(q)),
   );
 
+  const custom = useCustomColumns<EcoEntity>("ecosystem", (e) => e.id);
   const columns: Column<EcoEntity>[] = [
     {
       id: "name",
@@ -423,7 +425,7 @@ export function EcosystemPage() {
             <ResetFiltersButton count={[v.q, v.type, v.status, v.owner].filter(Boolean).length} onClick={() => set({ q: null, type: null, status: null, owner: null })} />
           </CollapsibleFilters>
           <DataTable
-            columns={columns}
+            columns={withCustomColumns(columns, custom)}
             rows={rows}
             getRowId={(e) => e.id}
             pageSize={50}

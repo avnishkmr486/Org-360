@@ -9,6 +9,7 @@ import type {
   Database,
   Designation,
   FrequencyDefinition,
+  GridColumn,
   HubTile,
   ProcessCategory,
   RecordStatus,
@@ -174,6 +175,50 @@ export async function saveHubTiles(tiles: HubTile[]): Promise<void> {
     patch: { settings: { ...d.settings, hubTiles: tiles.map((t) => ({ ...t, label: t.label.trim() })) } },
     audit: [auditEntry(d, "Settings", "KPIs Updated", "HUB-TILES", "Process Management KPIs", `Process Management now shows ${tiles.length} KPI${tiles.length === 1 ? "" : "s"}.`)],
   }));
+}
+
+/** Super Admin: add or change a KPI column on a screen's table grid. */
+export async function saveGridColumn(input: Omit<GridColumn, "id"> & { id?: string }): Promise<void> {
+  await latency();
+  if (!can(currentActor().role, "processes.configure_kpis")) throw new RepositoryError("Only a Super Admin can add, change or remove KPIs.");
+  const name = input.name.trim();
+  if (!name) throw new RepositoryError("Give the KPI a name.");
+  write((d) => {
+    const cols = d.settings.gridColumns ?? [];
+    if (cols.some((c) => c.id !== input.id && c.screen === input.screen && c.name.toLowerCase() === name.toLowerCase())) throw new RepositoryError(`This screen already has a KPI column named "${name}".`);
+    const col: GridColumn = { ...input, name, id: input.id ?? uid("GCOL"), target: input.target.trim(), unit: input.unit.trim(), description: input.description.trim() };
+    const next = cols.some((c) => c.id === col.id) ? cols.map((c) => (c.id === col.id ? col : c)) : [...cols, col];
+    return {
+      patch: { settings: { ...d.settings, gridColumns: next } },
+      audit: [auditEntry(d, "Settings", input.id ? "KPI Updated" : "KPI Added", col.id, name, `KPI column "${name}" ${input.id ? "changed" : "added"} on ${col.screen}.`)],
+    };
+  });
+}
+
+/** Super Admin: remove a grid KPI column together with every value typed into it. */
+export async function removeGridColumn(id: string): Promise<void> {
+  await latency();
+  if (!can(currentActor().role, "processes.configure_kpis")) throw new RepositoryError("Only a Super Admin can add, change or remove KPIs.");
+  write((d) => {
+    const col = (d.settings.gridColumns ?? []).find((c) => c.id === id);
+    const values = Object.fromEntries(Object.entries(d.settings.gridValues ?? {}).filter(([k]) => !k.startsWith(`${id}|`)));
+    return {
+      patch: { settings: { ...d.settings, gridColumns: (d.settings.gridColumns ?? []).filter((c) => c.id !== id), gridValues: values } },
+      audit: [auditEntry(d, "Settings", "KPI Removed", id, col?.name ?? id, `KPI column "${col?.name ?? id}" removed${col ? ` from ${col.screen}` : ""}.`)],
+    };
+  });
+}
+
+/** Fill in one cell of a grid KPI column (empty clears it). */
+export async function setGridValue(columnId: string, rowId: string, value: string): Promise<void> {
+  if (!can(currentActor().role, "settings.manage")) throw new RepositoryError("You don't have permission to fill in KPI columns.");
+  write((d) => {
+    const values = { ...(d.settings.gridValues ?? {}) };
+    const key = `${columnId}|${rowId}`;
+    if (value.trim()) values[key] = value.trim();
+    else delete values[key];
+    return { patch: { settings: { ...d.settings, gridValues: values } } };
+  });
 }
 
 export async function resetDemoData(): Promise<void> {

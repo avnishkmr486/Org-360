@@ -26,6 +26,7 @@ import {
 import type { Assignment, AssignmentLevel, Process, ProcessStatus } from "@/types";
 import { PageHeader } from "@/components/common/page-header";
 import { DataTable, type Column } from "@/components/tables/data-table";
+import { useCustomColumns, withCustomColumns } from "@/components/tables/custom-columns";
 import { FilterSelect, ResetFiltersButton, SearchInput } from "@/components/common/filters";
 import { ProcessStatusBadge, RecordStatusBadge, ToneBadge } from "@/components/common/badges";
 import { PersonCell, UserAvatar } from "@/components/common/user-avatar";
@@ -177,6 +178,7 @@ export function ProcessHub() {
   };
 
   /* ---------------------------------- columns --------------------------------- */
+  const customProcess = useCustomColumns<ProcessRow>("processes", (r) => r.process.id);
   const processColumns: Column<ProcessRow>[] = [
     {
       id: "name",
@@ -453,7 +455,7 @@ export function ProcessHub() {
         ) : null}
         <TabsContent value="processes" className="data-grid-host mt-4 data-[state=inactive]:hidden">
           <DataTable
-            columns={processColumns}
+            columns={withCustomColumns(processColumns, customProcess)}
             rows={processes}
             getRowId={(r) => r.process.id}
             onRowClick={(r) => router.push(`/processes/${r.process.id}`)}

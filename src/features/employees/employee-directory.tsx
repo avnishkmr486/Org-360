@@ -9,6 +9,7 @@ import type { Employee } from "@/types";
 import { PageHeader } from "@/components/common/page-header";
 import { KpiCard } from "@/components/common/kpi-card";
 import { DataTable, type Column } from "@/components/tables/data-table";
+import { useCustomColumns, withCustomColumns } from "@/components/tables/custom-columns";
 import { FilterSelect, ResetFiltersButton, SearchInput } from "@/components/common/filters";
 import { EmploymentStatusBadge } from "@/components/common/badges";
 import { ComplianceBar } from "@/components/common/compliance-indicator";
@@ -100,6 +101,7 @@ export function EmployeeDirectory() {
     setFormOpen(true);
   };
 
+  const custom = useCustomColumns<EmployeeRow>("employees", (r) => r.employee.id);
   const columns: Column<EmployeeRow>[] = [
     { id: "id", header: "Employee ID", cell: (r) => <span className="font-mono text-xs text-muted-foreground">{r.employee.id}</span>, sortValue: (r) => r.employee.id },
     {
@@ -298,7 +300,7 @@ export function EmployeeDirectory() {
       </section>
 
       <DataTable
-        columns={columns}
+        columns={withCustomColumns(columns, custom)}
         rows={rows}
         getRowId={(r) => r.employee.id}
         selectable

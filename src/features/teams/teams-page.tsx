@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DataTable, type Column } from "@/components/tables/data-table";
+import { useCustomColumns, withCustomColumns } from "@/components/tables/custom-columns";
 import { FilterSelect, ResetFiltersButton, SearchInput } from "@/components/common/filters";
 import { ComplianceBar } from "@/components/common/compliance-indicator";
 import { RecordStatusBadge, ToneBadge } from "@/components/common/badges";
@@ -84,6 +85,7 @@ export function TeamsPage() {
   );
   const threshold = db.settings.thresholds.good;
 
+  const custom = useCustomColumns<Row>("teams", (r) => r.team.id);
   const columns: Column<Row>[] = [
     { id: "id", header: "ID", cell: (r) => <span className="whitespace-nowrap font-mono text-xs text-muted-foreground">{r.team.id}</span>, sortValue: (r) => r.team.id },
     { id: "name", header: "Team", cell: (r) => <Link href={`/teams/${r.team.id}`} className="inline-block min-w-[180px] font-medium hover:text-primary hover:underline" onClick={(e) => e.stopPropagation()}>{r.team.name}</Link>, sortValue: (r) => r.team.name },
@@ -218,7 +220,7 @@ export function TeamsPage() {
       ) : null}
 
       <DataTable
-        columns={columns}
+        columns={withCustomColumns(columns, custom)}
         rows={filtered}
         getRowId={(r) => r.team.id}
         onRowClick={(r) => router.push(`/teams/${r.team.id}`)}

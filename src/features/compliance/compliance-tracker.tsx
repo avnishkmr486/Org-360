@@ -6,6 +6,7 @@ import { AlarmClock, BadgeCheck, CalendarRange, CheckCircle2, ClipboardList, Hou
 import type { ComplianceTask, DateRange, TaskStatus } from "@/types";
 import { PageHeader } from "@/components/common/page-header";
 import { DataTable, type Column } from "@/components/tables/data-table";
+import { useCustomColumns, withCustomColumns } from "@/components/tables/custom-columns";
 import { FilterSelect, ResetFiltersButton, SearchInput } from "@/components/common/filters";
 import { TaskStatusBadge } from "@/components/common/badges";
 import { ComplianceBar } from "@/components/common/compliance-indicator";
@@ -97,6 +98,7 @@ export function ComplianceTracker() {
   const employees = db.employees.filter((e) => inScope(e, scope) && (!v.department || e.departmentId === v.department) && (!v.team || e.teamId === v.team));
   const isEmployee = role === "employee";
 
+  const custom = useCustomColumns<Row>("compliance", (r) => r.task.id);
   const columns: Column<Row>[] = [
     ...(!isEmployee
       ? [
@@ -203,7 +205,7 @@ export function ComplianceTracker() {
       </section>
 
       <DataTable
-        columns={columns}
+        columns={withCustomColumns(columns, custom)}
         rows={rows}
         getRowId={(r) => r.task.id}
         onRowClick={(r) => router.push(`/compliance/${encodeURIComponent(r.task.id)}`)}

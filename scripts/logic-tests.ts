@@ -458,6 +458,26 @@ async function main() {
     await assert.rejects(repo.saveHubTiles([tile, { ...tile, id: "TILE-2", label: "under review" }]), /two KPIs/);
     await repo.saveHubTiles([tile]);
     assert.deepEqual(getDb().settings.hubTiles?.map((t) => t.label), ["Under review"]);
+
+    // KPI columns on a screen's table grid: Super Admin defines, values saved, delete clears them
+    const gc = { screen: "employees", name: "CSAT", type: "number" as const, target: "4", unit: "pts", description: "" };
+    setUiState({ currentUserId: owner.id });
+    await assert.rejects(repo.saveGridColumn(gc), /Super Admin/);
+    setUiState({ currentUserId: "USR-01" });
+    await repo.saveGridColumn(gc);
+    await assert.rejects(repo.saveGridColumn({ ...gc, name: "csat" }), /already has/);
+    const col = getDb().settings.gridColumns![0];
+    await repo.saveGridColumn({ ...col, name: "CSAT score" });
+    assert.equal(getDb().settings.gridColumns![0].name, "CSAT score");
+    await repo.setGridValue(col.id, "EMP-001", "4.5");
+    assert.equal(getDb().settings.gridValues![`${col.id}|EMP-001`], "4.5");
+    setUiState({ currentUserId: owner.id });
+    await assert.rejects(repo.setGridValue(col.id, "EMP-001", "1"), /permission/);
+    await assert.rejects(repo.removeGridColumn(col.id), /Super Admin/);
+    setUiState({ currentUserId: "USR-01" });
+    await repo.removeGridColumn(col.id);
+    assert.equal(getDb().settings.gridColumns!.length, 0);
+    assert.deepEqual(getDb().settings.gridValues, {});
     setUiState({ currentUserId: "USR-02" });
   });
 

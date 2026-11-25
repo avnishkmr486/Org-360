@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import type { HubTile, Process, ProcessKpi } from "@/types";
+import type { GridColumn, HubTile, KpiType, Process, ProcessKpi } from "@/types";
+import { Textarea } from "@/components/ui/textarea";
+import { GRID_SCREENS, gridScreenLabel } from "@/components/tables/custom-columns";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -12,17 +14,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { DataTable, type Column } from "@/components/tables/data-table";
 import { useDatabase } from "@/hooks/use-data";
-import { removeKpi, saveHubTiles } from "@/lib/repositories";
+import { removeGridColumn, removeKpi, saveGridColumn, saveHubTiles } from "@/lib/repositories";
 import { DEFAULT_HUB_TILES } from "@/features/processes/hub-tiles";
 import { TileForm, describeTile, saveHubTile } from "@/features/processes/hub-kpis";
 import { KPI_TYPES, KpiForm, targetText } from "@/features/processes/kpi-settings";
 
 const HUB_SCREEN = "__hub__";
+const GRID = "grid:";
 
 /** One row of the master table: a KPI and the screen it is configured on. */
 type KpiRow =
   | { source: "hub"; key: string; screen: string; screenId: string; name: string; kind: string; definition: string; tile: HubTile }
-  | { source: "process"; key: string; screen: string; screenId: string; name: string; kind: string; definition: string; process: Process; kpi: ProcessKpi };
+  | { source: "process"; key: string; screen: string; screenId: string; name: string; kind: string; definition: string; process: Process; kpi: ProcessKpi }
+  | { source: "grid"; key: string; screen: string; screenId: string; name: string; kind: string; definition: string; col: GridColumn };
 
 const fail = (e: unknown) => toast.error("Could not save", { description: e instanceof Error ? e.message : undefined });
 
@@ -50,8 +54,18 @@ export function KpiMasterPanel() {
         kpi: k,
       })),
     );
-    return [...hub, ...perProcess];
-  }, [tiles, db.processes]);
+    const grid: KpiRow[] = (db.settings.gridColumns ?? []).map<KpiRow>((c) => ({
+      source: "grid",
+      key: c.id,
+      screen: gridScreenLabel(c.screen),
+      screenId: GRID + c.screen,
+      name: c.name,
+      kind: `Grid column · ${KPI_TYPES[c.type]}`,
+      definition: [c.target ? `target ${c.target}${c.type === "percent" ? "%" : ""}` : "no target", c.unit].filter(Boolean).join(" · "),
+      col: c,
+    }));
+    return [...hub, ...grid, ...perProcess];
+  }, [tiles, db.processes, db.settings.gridColumns]);
 
   const needle = q.trim().toLowerCase();
   const shown = rows.filter((r) => (screenFilter === "all" || r.screenId === screenFilter) && (!needle || `${r.screen} ${r.name} ${r.kind} ${r.definition}`.toLowerCase().includes(needle)));
@@ -59,6 +73,7 @@ export function KpiMasterPanel() {
   const remove = async (r: KpiRow) => {
     try {
       if (r.source === "hub") await saveHubTiles(tiles.filter((t) => t.id !== r.tile.id));
+      else if (r.source === "grid") await removeGridColumn(r.col.id);
       else await removeKpi(r.screenId, r.kpi.id);
       toast.success("KPI deleted");
     } catch (e) {
@@ -87,7 +102,7 @@ export function KpiMasterPanel() {
               </Button>
             }
             title={`Delete “${r.name}”?`}
-            description={r.source === "hub" ? "The tile disappears from Process Management for everyone." : "The KPI column and every value entered under it are removed from that process."}
+            description={r.source === "hub" ? "The tile disappears from Process Management for everyone." : r.source === "grid" ? "The column disappears from that screen's table and every value entered under it is removed." : "The KPI column and every value entered under it are removed from that process."}
             confirmLabel="Delete KPI"
             destructive
             onConfirm={() => remove(r)}
@@ -97,7 +112,7 @@ export function KpiMasterPanel() {
     },
   ];
 
-  const screens = [{ id: HUB_SCREEN, name: "Process Management" }, ...db.processes.map((p) => ({ id: p.id, name: `Process · ${p.name}` }))];
+  const screens = [{ id: HUB_SCREEN, name: "Process Management" }, ...GRID_SCREENS.map((g) => ({ id: GRID + g.id, name: g.label })), ...db.processes.map((p) => ({ id: p.id, name: `Process · ${p.name}` }))];
 
   return (
     <div className="space-y-4">
@@ -146,6 +161,9 @@ function KpiEditor({ row, processes, tiles, busy, setBusy, onDone }: { row: KpiR
   if (!screen) {
     return <ScreenPicker processes={processes} onPick={setScreen} />;
   }
+  if (screen.startsWith(GRID)) {
+    return <GridColumnForm screen={screen.slice(GRID.length)} col={row && row.source === "grid" ? row.col : null} onDone={onDone} />;
+  }
   if (screen === HUB_SCREEN) {
     return (
       <TileForm
@@ -186,6 +204,11 @@ function ScreenPicker({ processes, onPick }: { processes: Process[]; onPick: (id
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={HUB_SCREEN}>Process Management (summary tile)</SelectItem>
+            {GRID_SCREENS.map((g) => (
+              <SelectItem key={g.id} value={GRID + g.id}>
+                {g.label} (table column)
+              </SelectItem>
+            ))}
             {processes.map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 Process · {p.name} (tracked KPI)
@@ -198,5 +221,105 @@ function ScreenPicker({ processes, onPick }: { processes: Process[]; onPick: (id
         <Button onClick={() => onPick(value)}>Continue</Button>
       </div>
     </div>
+  );
+}
+
+function GridColumnForm({ screen, col, onDone }: { screen: string; col: GridColumn | null; onDone: () => void }) {
+  const [name, setName] = useState(col?.name ?? "");
+  const [type, setType] = useState<KpiType>(col?.type ?? "number");
+  const [target, setTarget] = useState(col?.target ?? "");
+  const [unit, setUnit] = useState(col?.unit ?? "");
+  const [description, setDescription] = useState(col?.description ?? "");
+  const [saving, setSaving] = useState(false);
+  const numeric = type === "number" || type === "percent";
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        try {
+          await saveGridColumn({ id: col?.id, screen, name, type, target, unit, description });
+          toast.success(col ? "KPI updated" : "KPI added");
+          onDone();
+        } catch (err) {
+          fail(err);
+        } finally {
+          setSaving(false);
+        }
+      }}
+    >
+      <DialogHeader>
+        <DialogTitle>{col ? "Edit KPI column" : "Add KPI column"}</DialogTitle>
+        <DialogDescription>Adds a column to the {gridScreenLabel(screen)} table. Administrators and Super Admins fill it in on that screen; everyone can see, sort and reorder it.</DialogDescription>
+      </DialogHeader>
+      <div className="space-y-1.5">
+        <Label className="text-xs">Column name</Label>
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Satisfaction score" required autoFocus />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Type</Label>
+          <Select
+            value={type}
+            onValueChange={(v) => {
+              setType(v as KpiType);
+              setTarget("");
+            }}
+          >
+            <SelectTrigger aria-label="KPI type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(KPI_TYPES) as KpiType[]).map((t) => (
+                <SelectItem key={t} value={t}>
+                  {KPI_TYPES[t]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {type === "yes_no" ? (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Target</Label>
+            <Select value={target || "none"} onValueChange={(v) => setTarget(v === "none" ? "" : v)}>
+              <SelectTrigger aria-label="Target">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No target</SelectItem>
+                <SelectItem value="yes">Yes</SelectItem>
+                <SelectItem value="no">No</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : numeric ? (
+          <div className="space-y-1.5">
+            <Label className="text-xs">{type === "percent" ? "Target (%)" : "Target"}</Label>
+            <Input type="number" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="optional" />
+          </div>
+        ) : (
+          <div />
+        )}
+        {type === "number" ? (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Unit</Label>
+            <Input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="e.g. days, pts" />
+          </div>
+        ) : null}
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs">What does it measure?</Label>
+        <Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional — shown when hovering the column heading" />
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={onDone} disabled={saving}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={saving}>
+          {col ? "Save KPI" : "Add KPI"}
+        </Button>
+      </div>
+    </form>
   );
 }

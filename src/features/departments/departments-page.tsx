@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DataTable, type Column } from "@/components/tables/data-table";
+import { useCustomColumns, withCustomColumns } from "@/components/tables/custom-columns";
 import { FilterSelect, ResetFiltersButton, SearchInput } from "@/components/common/filters";
 import { ComplianceBar } from "@/components/common/compliance-indicator";
 import { RecordStatusBadge } from "@/components/common/badges";
@@ -75,6 +76,7 @@ export function DepartmentsPage() {
   const q = values.q.trim().toLowerCase();
   const filtered = rows.filter((r) => (!values.status || r.dept.status === values.status) && (!q || `${r.dept.name} ${r.dept.code} ${r.dept.id} ${r.head} ${r.dept.description}`.toLowerCase().includes(q)));
 
+  const custom = useCustomColumns<Row>("departments", (r) => r.dept.id);
   const columns: Column<Row>[] = [
     { id: "id", header: "ID", cell: (r) => <span className="whitespace-nowrap font-mono text-xs text-muted-foreground">{r.dept.id}</span>, sortValue: (r) => r.dept.id },
     {
@@ -212,7 +214,7 @@ export function DepartmentsPage() {
       </section>
 
       <DataTable
-        columns={columns}
+        columns={withCustomColumns(columns, custom)}
         rows={filtered}
         getRowId={(r) => r.dept.id}
         onRowClick={(r) => router.push(`/departments/${r.dept.id}`)}

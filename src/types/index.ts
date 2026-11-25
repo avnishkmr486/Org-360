@@ -552,6 +552,21 @@ export interface AppSettings {
   menuHidden?: Partial<Record<AppRole, string[]>>;
   /** Summary tiles on Process Management. Absent = the built-in set. */
   hubTiles?: HubTile[];
+  /** KPI columns a Super Admin added to a screen's table grid. */
+  gridColumns?: GridColumn[];
+  /** Values typed into those columns, keyed `${columnId}|${rowId}`. */
+  gridValues?: Record<string, string>;
+}
+
+/** A custom KPI column on a screen's table grid (see GRID_SCREENS). */
+export interface GridColumn {
+  id: ID;
+  screen: string;
+  name: string;
+  type: KpiType;
+  target: string;
+  unit: string;
+  description: string;
 }
 
 export interface ImportHistoryEntry {
