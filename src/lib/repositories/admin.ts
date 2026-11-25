@@ -209,6 +209,23 @@ export async function removeGridColumn(id: string): Promise<void> {
   });
 }
 
+/** Super Admin: move a grid KPI column left or right among the columns of its screen (the order everyone sees). */
+export async function moveGridColumn(id: string, delta: -1 | 1): Promise<void> {
+  if (!can(currentActor().role, "processes.configure_kpis")) throw new RepositoryError("Only a Super Admin can add, change or remove KPIs.");
+  write((d) => {
+    const all = [...(d.settings.gridColumns ?? [])];
+    const col = all.find((c) => c.id === id);
+    if (!col) return { patch: {} };
+    const same = all.filter((c) => c.screen === col.screen);
+    const j = same.findIndex((c) => c.id === id) + delta;
+    if (j < 0 || j >= same.length) return { patch: {} };
+    const a = all.indexOf(col);
+    const b = all.indexOf(same[j]);
+    [all[a], all[b]] = [all[b], all[a]];
+    return { patch: { settings: { ...d.settings, gridColumns: all } } };
+  });
+}
+
 /** Fill in one cell of a grid KPI column (empty clears it). */
 export async function setGridValue(columnId: string, rowId: string, value: string): Promise<void> {
   if (!can(currentActor().role, "settings.manage")) throw new RepositoryError("You don't have permission to fill in KPI columns.");

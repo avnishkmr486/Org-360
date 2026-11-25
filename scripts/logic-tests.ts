@@ -469,6 +469,10 @@ async function main() {
     const col = getDb().settings.gridColumns![0];
     await repo.saveGridColumn({ ...col, name: "CSAT score" });
     assert.equal(getDb().settings.gridColumns![0].name, "CSAT score");
+    await repo.saveGridColumn({ ...gc, name: "Second" });
+    await repo.moveGridColumn(getDb().settings.gridColumns![1].id, -1);
+    assert.deepEqual(getDb().settings.gridColumns!.map((c) => c.name), ["Second", "CSAT score"]);
+    await repo.removeGridColumn(getDb().settings.gridColumns![0].id);
     await repo.setGridValue(col.id, "EMP-001", "4.5");
     assert.equal(getDb().settings.gridValues![`${col.id}|EMP-001`], "4.5");
     setUiState({ currentUserId: owner.id });

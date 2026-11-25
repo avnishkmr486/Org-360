@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Pencil, Plus, RotateCcw, Settings2, Trash2 } from "lucide-react";
-import type { HubTile } from "@/types";
+import { ArrowDown, ArrowUp, Loader2, Pencil, Plus, RotateCcw, Settings2, Trash2 } from "lucide-react";
+import type { GridColumn, HubTile } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ColumnArranger, useColumnOrder } from "@/components/tables/column-arranger";
 import { useCurrentUser, useDatabase } from "@/hooks/use-data";
-import { saveHubTiles } from "@/lib/repositories";
+import { moveGridColumn, removeGridColumn, saveHubTiles } from "@/lib/repositories";
+import { GridColumnForm } from "@/features/settings/grid-column-form";
+import { KPI_TYPES } from "./kpi-settings";
 import { uid } from "@/lib/utils/random";
 import { DEFAULT_HUB_TILES, MANAGER_METRICS, METRIC_LABELS } from "./hub-tiles";
 
@@ -32,6 +34,7 @@ const ASSIGNMENT_STATUSES = [
   { value: "inactive", label: "Inactive" },
 ];
 const ANY = "__any__";
+const GRID_SCREEN = "processes";
 
 /**
  * The summary tiles ("KPIs") at the top of Process Management.
@@ -78,8 +81,12 @@ export async function saveHubTile(current: HubTile[], tile: HubTile) {
 }
 
 function ManageDialog({ open, onOpenChange, tiles }: { open: boolean; onOpenChange: (o: boolean) => void; tiles: HubTile[] }) {
+  const db = useDatabase();
+  const [tab, setTab] = useState<"tiles" | "columns">("tiles");
   const [editing, setEditing] = useState<HubTile | "new" | null>(null);
+  const [editingCol, setEditingCol] = useState<GridColumn | "new" | null>(null);
   const [busy, setBusy] = useState(false);
+  const gridCols = (db.settings.gridColumns ?? []).filter((c) => c.screen === GRID_SCREEN);
   const run = async (action: () => Promise<void>, ok: string) => {
     setBusy(true);
     try {
@@ -97,12 +104,17 @@ function ManageDialog({ open, onOpenChange, tiles }: { open: boolean; onOpenChan
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (!o) setEditing(null);
+        if (!o) {
+          setEditing(null);
+          setEditingCol(null);
+        }
         onOpenChange(o);
       }}
     >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        {editing ? (
+        {editingCol ? (
+          <GridColumnForm screen={GRID_SCREEN} col={editingCol === "new" ? null : editingCol} onDone={() => setEditingCol(null)} />
+        ) : editing ? (
           <TileForm
             key={editing === "new" ? "new" : editing.id}
             tile={editing === "new" ? null : editing}
@@ -118,6 +130,57 @@ function ManageDialog({ open, onOpenChange, tiles }: { open: boolean; onOpenChan
               <DialogTitle>Process Management KPIs</DialogTitle>
               <DialogDescription>The tiles shown at the top of Process Management. Everyone can reorder them for their own view; only you can add or change them.</DialogDescription>
             </DialogHeader>
+            <div className="flex gap-1 rounded-lg bg-muted p-1 text-sm" role="tablist">
+              {([["tiles", "Summary tiles"], ["columns", "Table columns"]] as const).map(([k, l]) => (
+                <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`flex-1 rounded-md px-3 py-1.5 font-medium transition-colors ${tab === k ? "bg-card shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            {tab === "columns" ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Extra columns ({gridCols.length})</h4>
+                  <Button size="sm" onClick={() => setEditingCol("new")}>
+                    <Plus /> Add column
+                  </Button>
+                </div>
+                {gridCols.length ? (
+                  <ul className="divide-y rounded-lg border">
+                    {gridCols.map((c, i) => (
+                      <li key={c.id} className="flex items-center gap-1 px-3 py-2.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-medium">{c.name}</div>
+                          <div className="truncate text-xs text-muted-foreground">{[KPI_TYPES[c.type], c.target ? `target ${c.target}${c.type === "percent" ? "%" : ""}` : "no target", c.unit].filter(Boolean).join(" · ")}</div>
+                        </div>
+                        <Button variant="ghost" size="icon-sm" aria-label={`Move ${c.name} left`} disabled={i === 0 || busy} onClick={() => run(() => moveGridColumn(c.id, -1), "Order saved")}>
+                          <ArrowUp />
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" aria-label={`Move ${c.name} right`} disabled={i === gridCols.length - 1 || busy} onClick={() => run(() => moveGridColumn(c.id, 1), "Order saved")}>
+                          <ArrowDown />
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" aria-label={`Edit ${c.name}`} onClick={() => setEditingCol(c)}>
+                          <Pencil />
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" aria-label={`Delete ${c.name}`} disabled={busy} onClick={() => run(() => removeGridColumn(c.id), "Column deleted")}>
+                          <Trash2 />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">No extra columns. Add a KPI column to the processes table.</p>
+                )}
+                <p className="text-xs text-muted-foreground">These appear after the standard columns of the processes table, in this order, for everyone. Deleting a column also deletes its values. Anyone can still reorder their own view with the column button.</p>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => onOpenChange(false)}>
+                    Done
+                  </Button>
+                </DialogFooter>
+              </>
+            ) : null}
+            {tab === "tiles" ? (
+              <>
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">KPIs ({tiles.length})</h4>
               <Button size="sm" onClick={() => setEditing("new")}>
@@ -152,6 +215,8 @@ function ManageDialog({ open, onOpenChange, tiles }: { open: boolean; onOpenChan
                 Done
               </Button>
             </DialogFooter>
+              </>
+            ) : null}
           </div>
         )}
       </DialogContent>
