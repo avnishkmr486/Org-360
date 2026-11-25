@@ -40,7 +40,8 @@ export type Permission =
   | "database.view"
   | "menu.configure"
   | "ecosystem.manage"
-  | "ecosystem.delete_linked";
+  | "ecosystem.delete_linked"
+  | "processes.configure_kpis";
 
 const ALL: Permission[] = [
   "employees.manage",
@@ -59,12 +60,13 @@ const ALL: Permission[] = [
   "menu.configure",
   "ecosystem.manage",
   "ecosystem.delete_linked",
+  "processes.configure_kpis",
 ];
 
 export const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
   super_admin: ALL,
   // Master Data and the database structure view are Super Admin only.
-  administrator: ALL.filter((p) => p !== "tasks.review" && p !== "masterdata.manage" && p !== "database.view" && p !== "menu.configure" && p !== "ecosystem.delete_linked"),
+  administrator: ALL.filter((p) => p !== "tasks.review" && p !== "masterdata.manage" && p !== "database.view" && p !== "menu.configure" && p !== "ecosystem.delete_linked" && p !== "processes.configure_kpis"),
   senior_management: ["ecosystem.manage", "processes.manage", "assignments.manage", "tasks.review", "reports.export", "audit.view", "tasks.submit"],
   department_head: ["ecosystem.manage", "organization.manage", "processes.manage", "assignments.manage", "tasks.review", "tasks.submit", "reports.export", "employees.manage"],
   project_manager: ["ecosystem.manage", "assignments.manage", "tasks.review", "tasks.submit", "reports.export"],

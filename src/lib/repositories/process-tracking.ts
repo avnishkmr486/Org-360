@@ -4,11 +4,13 @@
  * These edits do not create a new process version; they are recorded in the audit log.
  */
 import type { ISODate, ItemEvent, Process, ProcessActionItem, ProcessActionStatus, ProcessKpi, TrackedItem, TrackedItemStatus } from "@/types";
+import { can } from "@/lib/auth/permissions";
 import { processAccess } from "@/lib/auth/process-access";
 import { uid } from "@/lib/utils/random";
 import { auditEntry, currentActor, getDb, latency, nowIso, replaceById, RepositoryError, write } from "./core";
 
 const NO_ACCESS = "You don't have permission to do this on this process.";
+const NO_KPI_ACCESS = "Only a Super Admin can add, change or remove KPIs.";
 
 function context(processId: string) {
   const db = getDb();
@@ -41,8 +43,8 @@ export async function setItemLabel(processId: string, label: string): Promise<vo
 
 export async function saveKpi(processId: string, input: KpiInput): Promise<void> {
   await latency(200);
-  const { p, access } = context(processId);
-  if (!access.manage) throw new RepositoryError(NO_ACCESS);
+  const { p } = context(processId);
+  if (!can(currentActor().role, "processes.configure_kpis")) throw new RepositoryError(NO_KPI_ACCESS);
   const name = input.name.trim();
   if (!name) throw new RepositoryError("Give the KPI a name.");
   const kpis = p.kpis ?? [];
@@ -54,8 +56,8 @@ export async function saveKpi(processId: string, input: KpiInput): Promise<void>
 
 export async function removeKpi(processId: string, kpiId: string): Promise<void> {
   await latency(200);
-  const { p, access } = context(processId);
-  if (!access.manage) throw new RepositoryError(NO_ACCESS);
+  const { p } = context(processId);
+  if (!can(currentActor().role, "processes.configure_kpis")) throw new RepositoryError(NO_KPI_ACCESS);
   const kpi = (p.kpis ?? []).find((k) => k.id === kpiId);
   if (!kpi) return;
   mutate(processId, "KPI Removed", `KPI "${kpi.name}" removed.`, (x) => ({

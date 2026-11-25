@@ -383,11 +383,14 @@ async function main() {
 
     // The employee doing the work cannot define KPIs ...
     setUiState({ currentUserId: doer.id });
-    await assert.rejects(repo.saveKpi(proc.id, { name: "Score", type: "number", target: "8", unit: "", description: "" }), /permission/);
-    // ... but the owner can.
+    await assert.rejects(repo.saveKpi(proc.id, { name: "Score", type: "number", target: "8", unit: "", description: "" }), /Super Admin/);
+    // ... and neither can the owner: KPIs are a Super Admin job.
     setUiState({ currentUserId: owner.id });
+    await assert.rejects(repo.saveKpi(proc.id, { name: "Score", type: "number", target: "8", unit: "pts", description: "" }), /Super Admin/);
+    setUiState({ currentUserId: "USR-01" });
     await repo.saveKpi(proc.id, { name: "Score", type: "number", target: "8", unit: "pts", description: "" });
     await assert.rejects(repo.saveKpi(proc.id, { name: "score", type: "number", target: "", unit: "", description: "" }), /already exists/);
+    setUiState({ currentUserId: owner.id });
     await repo.setItemLabel(proc.id, "Design");
     const kpi = getDb().processes.find((p) => p.id === proc.id)!.kpis![0];
 
@@ -442,6 +445,8 @@ async function main() {
     assert.equal(getDb().processes.find((p) => p.id === proc.id)!.actions![0].status, "done");
     await assert.rejects(repo.saveAction(proc.id, { title: "x", notes: "", ownerId: null, eta: null, status: "open" }), /permission/);
     setUiState({ currentUserId: owner.id });
+    await assert.rejects(repo.removeKpi(proc.id, kpi.id), /Super Admin/);
+    setUiState({ currentUserId: "USR-01" });
     await repo.removeKpi(proc.id, kpi.id);
     assert.deepEqual(getDb().processes.find((p) => p.id === proc.id)!.items![0].values, {});
     setUiState({ currentUserId: "USR-02" });

@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { ToneBadge } from "@/components/common/badges";
 import { PersonCell } from "@/components/common/user-avatar";
 import { DataTable, type Column } from "@/components/tables/data-table";
+import { ColumnArranger, useColumnOrder } from "@/components/tables/column-arranger";
 import { useCurrentUser, useDatabase, useLookups, useToday } from "@/hooks/use-data";
 import { processAccess } from "@/lib/auth/process-access";
 import { removeItem, saveItem } from "@/lib/repositories";
@@ -48,7 +49,7 @@ export function ManageTab({ process: p, onOpenMeetings }: { process: Process; on
   const db = useDatabase();
   const L = useLookups();
   const today = useToday();
-  const { role, employee } = useCurrentUser();
+  const { role, employee, user, can } = useCurrentUser();
   const access = processAccess(db, role, employee?.id ?? null, p);
   const label = p.itemLabel || "Item";
   const kpis = p.kpis ?? [];
@@ -64,7 +65,7 @@ export function ManageTab({ process: p, onOpenMeetings }: { process: Process; on
   const scored = new Map(items.map((i) => [i.id, scoreItem(i, kpis, today)]));
   const count = (h: string) => items.filter((i) => scored.get(i.id)?.health === h).length;
 
-  const columns: Column<TrackedItem>[] = [
+  const baseColumns: Column<TrackedItem>[] = [
     {
       id: "title",
       header: label,
@@ -133,6 +134,9 @@ export function ManageTab({ process: p, onOpenMeetings }: { process: Process; on
         ),
     },
   ];
+  // Anyone can reorder the columns (KPIs included); it is a personal view saved in this browser.
+  const { ordered: columns, ...arrange } = useColumnOrder(`org360:cols:${user.id}:${p.id}`, baseColumns, ["actions"]);
+  const columnLabels: Record<string, string> = { title: label, health: "Health", status: "Status", eta: "ETA", owner: "Owner", note: "Note", ...Object.fromEntries(kpis.map((k) => [`kpi-${k.id}`, k.name])) };
 
   const done = count("done");
   const chips: { key: string | null; label: string; value: string | number; icon: typeof CheckCircle2; cls: string }[] = [
@@ -182,7 +186,8 @@ export function ManageTab({ process: p, onOpenMeetings }: { process: Process; on
           </button>
         </p>
         <div className="ml-auto flex items-center gap-2">
-          {access.manage ? (
+          <ColumnArranger columns={columns} labels={columnLabels} fixedLast={["actions"]} {...arrange} />
+          {access.manage || can("processes.configure_kpis") ? (
             <Button variant="outline" size="icon-sm" aria-label="Configure KPIs" title="Configure KPIs" onClick={() => setSettingsOpen(true)}>
               <Settings2 />
             </Button>

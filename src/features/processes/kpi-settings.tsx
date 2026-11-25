@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useCurrentUser } from "@/hooks/use-data";
 import { removeKpi, saveKpi, setItemLabel } from "@/lib/repositories";
 import { fail } from "./item-inline";
 
@@ -28,6 +29,8 @@ function F({ label, children, className }: { label: string; children: React.Reac
 
 /** Configure what the process measures: what it tracks (item name) and its KPIs. */
 export function KpiSettingsDialog({ process: p, open, onOpenChange }: { process: Process; open: boolean; onOpenChange: (o: boolean) => void }) {
+  const { can } = useCurrentUser();
+  const canConfigure = can("processes.configure_kpis");
   const [editing, setEditing] = useState<ProcessKpi | "new" | null>(null);
   const [labelDraft, setLabelDraft] = useState<string | null>(null);
   const label = p.itemLabel || "Item";
@@ -69,9 +72,11 @@ export function KpiSettingsDialog({ process: p, open, onOpenChange }: { process:
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">KPIs ({kpis.length})</h4>
-                <Button size="sm" onClick={() => setEditing("new")}>
-                  <Plus /> Add KPI
-                </Button>
+                {canConfigure ? (
+                  <Button size="sm" onClick={() => setEditing("new")}>
+                    <Plus /> Add KPI
+                  </Button>
+                ) : null}
               </div>
               {kpis.length ? (
                 <ul className="divide-y rounded-lg border">
@@ -86,19 +91,23 @@ export function KpiSettingsDialog({ process: p, open, onOpenChange }: { process:
                           {k.target ? ` · target ${targetText(k)}` : " · no target"}
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon-sm" aria-label={`Edit ${k.name}`} onClick={() => setEditing(k)}>
-                        <Pencil />
-                      </Button>
-                      <Button variant="ghost" size="icon-sm" aria-label={`Remove ${k.name}`} onClick={() => removeKpi(p.id, k.id).then(() => toast.success("KPI removed")).catch(fail("Could not remove"))}>
-                        <Trash2 />
-                      </Button>
+                      {canConfigure ? (
+                        <>
+                          <Button variant="ghost" size="icon-sm" aria-label={`Edit ${k.name}`} onClick={() => setEditing(k)}>
+                            <Pencil />
+                          </Button>
+                          <Button variant="ghost" size="icon-sm" aria-label={`Remove ${k.name}`} onClick={() => removeKpi(p.id, k.id).then(() => toast.success("KPI removed")).catch(fail("Could not remove"))}>
+                            <Trash2 />
+                          </Button>
+                        </>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">No KPIs yet. Add your own — for example “Review score”, “Approved by client” or “Defects found”.</p>
+                <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">{canConfigure ? "No KPIs yet. Add your own — for example “Review score”, “Approved by client” or “Defects found”." : "No KPIs yet. A Super Admin adds them."}</p>
               )}
-              <p className="text-xs text-muted-foreground">KPIs with a target feed each {label.toLowerCase()}’s health score.</p>
+              <p className="text-xs text-muted-foreground">KPIs with a target feed each {label.toLowerCase()}’s health score.{canConfigure ? "" : " Only a Super Admin can add or change KPIs; you can reorder the columns with the column button above the grid."}</p>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => close(false)}>
