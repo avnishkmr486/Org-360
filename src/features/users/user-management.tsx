@@ -54,7 +54,7 @@ const PERMISSION_LABELS: Record<Permission, string> = {
   "menu.configure": "Configure side menu per role",
   "ecosystem.manage": "Manage products, clients, modules and their links",
   "ecosystem.delete_linked": "Delete ecosystem entries that other entries are linked to",
-  "processes.configure_kpis": "Add, change and remove a process’s KPIs",
+  "processes.configure_kpis": "Add, change and remove KPIs (process KPIs and screen tiles), and see the KPI Master in Settings",
 };
 
 export function UserManagement() {

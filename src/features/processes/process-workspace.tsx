@@ -186,7 +186,7 @@ export function ManageTab({ process: p, onOpenMeetings }: { process: Process; on
           </button>
         </p>
         <div className="ml-auto flex items-center gap-2">
-          <ColumnArranger columns={columns} labels={columnLabels} fixedLast={["actions"]} {...arrange} />
+          <ColumnArranger columns={columns} labels={columnLabels} noun="columns" fixedLast={["actions"]} {...arrange} />
           {access.manage || can("processes.configure_kpis") ? (
             <Button variant="outline" size="icon-sm" aria-label="Configure KPIs" title="Configure KPIs" onClick={() => setSettingsOpen(true)}>
               <Settings2 />

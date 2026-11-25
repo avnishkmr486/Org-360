@@ -449,6 +449,15 @@ async function main() {
     setUiState({ currentUserId: "USR-01" });
     await repo.removeKpi(proc.id, kpi.id);
     assert.deepEqual(getDb().processes.find((p) => p.id === proc.id)!.items![0].values, {});
+
+    // Process Management tiles: Super Admin only, names unique
+    const tile = { id: "TILE-test", label: "Under review", metric: "processes" as const, status: "under_review", health: null, tone: "info" as const };
+    setUiState({ currentUserId: owner.id });
+    await assert.rejects(repo.saveHubTiles([tile]), /Super Admin/);
+    setUiState({ currentUserId: "USR-01" });
+    await assert.rejects(repo.saveHubTiles([tile, { ...tile, id: "TILE-2", label: "under review" }]), /two KPIs/);
+    await repo.saveHubTiles([tile]);
+    assert.deepEqual(getDb().settings.hubTiles?.map((t) => t.label), ["Under review"]);
     setUiState({ currentUserId: "USR-02" });
   });
 

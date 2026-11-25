@@ -9,10 +9,12 @@ import type {
   Database,
   Designation,
   FrequencyDefinition,
+  HubTile,
   ProcessCategory,
   RecordStatus,
 } from "@/types";
-import { auditEntry, getDb, latency, nowIso, replaceById, RepositoryError, write } from "./core";
+import { can } from "@/lib/auth/permissions";
+import { auditEntry, currentActor, getDb, latency, nowIso, replaceById, RepositoryError, write } from "./core";
 import { resetDb } from "@/lib/store/mock-db";
 import { uid } from "@/lib/utils/random";
 
@@ -155,6 +157,23 @@ export async function updateSettings(patch: Partial<AppSettings>, description = 
     }
   }
   write((d) => ({ patch: { settings: { ...d.settings, ...patch } }, audit: [auditEntry(d, "Settings", "Updated", "SETTINGS", "Application settings", description)] }));
+}
+
+/** Super Admin: replace the summary tiles ("KPIs") shown on Process Management. */
+export async function saveHubTiles(tiles: HubTile[]): Promise<void> {
+  await latency();
+  if (!can(currentActor().role, "processes.configure_kpis")) throw new RepositoryError("Only a Super Admin can add, change or remove KPIs.");
+  const seen = new Set<string>();
+  for (const t of tiles) {
+    if (!t.label.trim()) throw new RepositoryError("Give every KPI a name.");
+    const key = t.label.trim().toLowerCase();
+    if (seen.has(key)) throw new RepositoryError(`There are two KPIs named "${t.label.trim()}".`);
+    seen.add(key);
+  }
+  write((d) => ({
+    patch: { settings: { ...d.settings, hubTiles: tiles.map((t) => ({ ...t, label: t.label.trim() })) } },
+    audit: [auditEntry(d, "Settings", "KPIs Updated", "HUB-TILES", "Process Management KPIs", `Process Management now shows ${tiles.length} KPI${tiles.length === 1 ? "" : "s"}.`)],
+  }));
 }
 
 export async function resetDemoData(): Promise<void> {

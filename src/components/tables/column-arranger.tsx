@@ -4,13 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Columns3, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import type { Column } from "./data-table";
 
 /**
  * Lets anyone reorder a grid's columns. It is a personal view setting, kept in this browser per grid and never changes
  * the data. `fixedLast` columns (e.g. row actions) always stay at the end.
  */
-export function useColumnOrder<T>(storageKey: string, columns: Column<T>[], fixedLast: string[] = []) {
+export function useColumnOrder<T extends { id: string }>(storageKey: string, columns: T[], fixedLast: string[] = []) {
   const [saved, setSaved] = useState<string[]>([]);
   useEffect(() => {
     try {
@@ -52,18 +51,18 @@ export function useColumnOrder<T>(storageKey: string, columns: Column<T>[], fixe
   return { ordered, move, reset: () => persist([]), customised: saved.length > 0 };
 }
 
-export function ColumnArranger<T>({ columns, labels, move, reset, customised, fixedLast = [] }: { columns: Column<T>[]; labels: Record<string, string>; move: (id: string, d: -1 | 1) => void; reset: () => void; customised: boolean; fixedLast?: string[] }) {
+export function ColumnArranger<T extends { id: string }>({ columns, labels, move, reset, customised, fixedLast = [], noun = "columns" }: { columns: T[]; labels: Record<string, string>; move: (id: string, d: -1 | 1) => void; reset: () => void; customised: boolean; fixedLast?: string[]; noun?: string }) {
   const list = columns.filter((c) => !fixedLast.includes(c.id));
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="icon-sm" aria-label="Arrange columns" title="Arrange columns">
+        <Button variant="outline" size="icon-sm" aria-label={`Arrange ${noun}`} title={`Arrange ${noun}`}>
           <Columns3 />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-64 p-2">
         <div className="flex items-center justify-between px-2 pb-1.5 pt-1">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Arrange columns</span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Arrange {noun}</span>
           <Button variant="ghost" size="xs" onClick={reset} disabled={!customised}>
             <RotateCcw /> Reset
           </Button>
@@ -81,7 +80,7 @@ export function ColumnArranger<T>({ columns, labels, move, reset, customised, fi
             </li>
           ))}
         </ul>
-        <p className="px-2 pt-1.5 text-[11px] text-muted-foreground">Your own view only. Click a column heading to sort.</p>
+        <p className="px-2 pt-1.5 text-[11px] text-muted-foreground">Your own view only — other people keep theirs.</p>
       </PopoverContent>
     </Popover>
   );

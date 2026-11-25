@@ -31,6 +31,8 @@ import { ProcessStatusBadge, RecordStatusBadge, ToneBadge } from "@/components/c
 import { PersonCell, UserAvatar } from "@/components/common/user-avatar";
 import { ExportMenu } from "@/components/common/export-menu";
 import { KpiCard } from "@/components/common/kpi-card";
+import { useHubKpis } from "./hub-kpis";
+import { tileIcon } from "./hub-tiles";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { EmptyState } from "@/components/common/states";
 import { Button } from "@/components/ui/button";
@@ -39,6 +41,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { useCurrentUser, useDatabase, useLookups, useToday } from "@/hooks/use-data";
 import { useUrlFilters } from "@/hooks/use-url-filters";
 import { cloneProcess, setAssignmentStatus, setProcessStatus } from "@/lib/repositories";
+import type { HubTile } from "@/types";
 import { computeAllProcessHealth, HEALTH_META, type HealthResult, type ProcessHealth } from "@/lib/calculations/process-health";
 import { inScope } from "@/lib/auth/permissions";
 import { ASSIGNMENT_LEVEL_LABELS, FREQUENCY_LABELS, PROCESS_STATUS_META } from "@/lib/constants";
@@ -365,7 +368,29 @@ export function ProcessHub() {
       />
     ) : null;
 
-  const kpi = (h: ProcessHealth) => () => set({ tab: "processes", health: v.health === h ? null : h });
+  const { tiles: kpiTiles, controls: kpiControls } = useHubKpis(isEmployee);
+  const renderTile = (t: HubTile) => {
+    const Icon = tileIcon(t);
+    if (t.metric === "assignments") {
+      const rows = assignmentsAll.filter((r) => !t.status || r.a.status === t.status);
+      return <KpiCard key={t.id} label={t.label} value={rows.length} icon={Icon} tone={t.tone} hint={`of ${assignmentsAll.length} total`} onClick={() => set({ tab: "assignments", astatus: t.status })} />;
+    }
+    if (t.metric === "employees_covered") return <KpiCard key={t.id} label={t.label} value={covered} icon={Icon} tone={t.tone} hint="by active assignments" />;
+    if (t.metric === "followups_due") return <KpiCard key={t.id} label={t.label} value={followUpsDue} icon={Icon} tone={t.tone} hint="overdue or within 7 days" />;
+    const rows = processesAll.filter((r) => (!t.status || r.process.status === t.status) && (!t.health || r.health.health === t.health));
+    const hint = t.health ? ({ healthy: "meeting target", at_risk: "slightly below target", critical: "needs intervention" }[t.health] ?? "") : t.status ? "" : `${processesAll.filter((r) => r.process.status === "active").length} active`;
+    return (
+      <KpiCard
+        key={t.id}
+        label={t.label}
+        value={rows.length}
+        icon={Icon}
+        tone={t.tone}
+        hint={hint}
+        onClick={() => (t.status || t.health ? set({ tab: "processes", status: t.status, health: t.health }) : clear())}
+      />
+    );
+  };
 
   return (
     <div className="grid-page">
@@ -379,6 +404,7 @@ export function ProcessHub() {
         }
         actions={
           <>
+            {kpiControls}
             {exportMenu}
             {canManage ? (
               <Button size="sm" onClick={() => setCreating(true)}>
@@ -409,19 +435,7 @@ export function ProcessHub() {
         }
       />
 
-      <div className="kpi-strip">
-        <KpiCard label="Processes" value={processesAll.length} icon={Layers} tone="info" hint={`${processesAll.filter((r) => r.process.status === "active").length} active`} onClick={() => clear()} />
-        <KpiCard label="Healthy" value={count("healthy")} icon={ShieldCheck} tone="success" hint="meeting target" onClick={kpi("healthy")} />
-        <KpiCard label="At Risk" value={count("at_risk")} icon={HeartPulse} tone="warning" hint="slightly below target" onClick={kpi("at_risk")} />
-        <KpiCard label="Critical" value={count("critical")} icon={ShieldAlert} tone="danger" hint="needs intervention" onClick={kpi("critical")} />
-        {!isEmployee ? (
-          <>
-            <KpiCard label="Active assignments" value={activeAssignments} icon={GitBranchPlus} tone="teal" hint={`of ${assignmentsAll.length} total`} onClick={() => set({ tab: "assignments", astatus: "active" })} />
-            <KpiCard label="Employees covered" value={covered} icon={Users} tone="neutral" hint="by active assignments" />
-          </>
-        ) : null}
-        <KpiCard label="Follow-ups due" value={followUpsDue} icon={AlarmClock} tone="warning" hint="overdue or within 7 days" />
-      </div>
+      <div className="kpi-strip">{kpiTiles.map((t) => renderTile(t))}</div>
 
       <Tabs value={tab} onValueChange={(t) => set({ tab: t === "processes" ? null : t })} className="data-grid-host">
         {!isEmployee ? (

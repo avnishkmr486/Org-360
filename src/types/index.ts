@@ -520,6 +520,18 @@ export interface NotificationPreference {
   email: boolean;
 }
 
+/** One summary tile ("KPI") on the Process Management screen. Super Admin defines them; everyone orders them for themselves. */
+export interface HubTile {
+  id: ID;
+  label: string;
+  metric: "processes" | "assignments" | "employees_covered" | "followups_due";
+  /** processes: a ProcessStatus; assignments: "active" | "inactive". null = any. */
+  status: string | null;
+  /** processes only: healthy | at_risk | critical. null = any. */
+  health: string | null;
+  tone: "success" | "warning" | "danger" | "info" | "teal" | "neutral";
+}
+
 export interface AppSettings {
   thresholds: ComplianceThresholds;
   dateFormat: "dd MMM yyyy" | "dd/MM/yyyy" | "MM/dd/yyyy" | "yyyy-MM-dd";
@@ -538,6 +550,8 @@ export interface AppSettings {
   notificationPreferences: Record<NotificationType, NotificationPreference>;
   /** Side-menu entries hidden per role (see navKey). Absent = the role's default menu. */
   menuHidden?: Partial<Record<AppRole, string[]>>;
+  /** Summary tiles on Process Management. Absent = the built-in set. */
+  hubTiles?: HubTile[];
 }
 
 export interface ImportHistoryEntry {

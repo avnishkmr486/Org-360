@@ -42,6 +42,7 @@ import { resetDemoData, updateOrganization, updateSettings } from "@/lib/reposit
 import { FREQUENCY_LABELS, NOTIFICATION_TYPE_META, TIER_META } from "@/lib/constants";
 import { DataManagementPanel } from "./data-management-section";
 import { MenuConfigPanel } from "./menu-config-section";
+import { KpiMasterPanel } from "./kpi-master-section";
 import { formatBytes } from "@/lib/utils/format";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +59,7 @@ const SECTIONS = [
   { id: "theme", label: "Theme", icon: SunMoon },
   { id: "notifications", label: "Notification Preferences", icon: Bell },
   { id: "menu", label: "Menu Configuration", icon: PanelLeft },
+  { id: "kpis", label: "KPI Master", icon: Gauge },
   { id: "data", label: "Data Management", icon: DatabaseIcon },
   { id: "danger", label: "Demo Data", icon: RefreshCcw },
 ] as const;
@@ -68,7 +70,7 @@ const fail = (title: string) => (e: unknown) => toast.error(title, { description
 export function SettingsPage() {
   const { can } = useCurrentUser();
   const readOnly = !can("settings.manage");
-  const sections = SECTIONS.filter((s) => s.id !== "menu" || can("menu.configure"));
+  const sections = SECTIONS.filter((s) => (s.id !== "menu" || can("menu.configure")) && (s.id !== "kpis" || can("processes.configure_kpis")));
   const [section, setSection] = useState<SectionId>("profile");
 
   return (
@@ -109,6 +111,7 @@ export function SettingsPage() {
           {section === "theme" ? <ThemeSection readOnly={readOnly} /> : null}
           {section === "notifications" ? <NotificationSection readOnly={readOnly} /> : null}
           {section === "menu" && can("menu.configure") ? <MenuConfigPanel /> : null}
+          {section === "kpis" && can("processes.configure_kpis") ? <KpiMasterPanel /> : null}
           {section === "data" ? <DataManagementPanel readOnly={readOnly} /> : null}
           {section === "danger" ? <DangerSection readOnly={readOnly} /> : null}
         </div>

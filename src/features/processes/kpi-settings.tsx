@@ -121,7 +121,7 @@ export function KpiSettingsDialog({ process: p, open, onOpenChange }: { process:
   );
 }
 
-function KpiForm({ processId, kpi, onDone }: { processId: string; kpi: ProcessKpi | null; onDone: () => void }) {
+export function KpiForm({ processId, kpi, onDone }: { processId: string; kpi: ProcessKpi | null; onDone: () => void }) {
   const [name, setName] = useState(kpi?.name ?? "");
   const [type, setType] = useState<KpiType>(kpi?.type ?? "number");
   const [target, setTarget] = useState(kpi?.target ?? "");
