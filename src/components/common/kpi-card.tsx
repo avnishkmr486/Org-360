@@ -34,17 +34,16 @@ export function KpiCard({ label, value, icon: Icon, tone = "info", delta, deltaU
   const clickable = !!(href || onClick);
   const body = (
     <div
-      className={cn("kpi-tile group flex h-full items-center gap-2.5 overflow-hidden px-3 py-2", clickable && "kpi-tile-clickable cursor-pointer", className)}
+      className={cn("kpi-tile group flex h-full flex-col justify-between overflow-hidden p-3", clickable && "kpi-tile-clickable cursor-pointer", className)}
       style={{ "--tile": TONE_VAR[tone] } as CSSProperties}
       title={typeof hint === "string" ? `${label} — ${hint}` : label}
     >
-      <span className="kpi-icon flex size-8 shrink-0 items-center justify-center rounded-[10px]">
-        <Icon className="size-4" />
+      <span className="kpi-icon flex size-9 shrink-0 items-center justify-center rounded-[10px]">
+        <Icon className="size-[18px]" />
       </span>
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[11px] font-medium leading-tight text-muted-foreground">{label}</div>
-        <div className="mt-0.5 flex min-w-0 items-baseline gap-1.5">
-          <span className="shrink-0 text-[19px] font-semibold leading-tight tracking-tight tabular-nums text-foreground">{value}</span>
+      <div className="min-w-0">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
+          <span className="text-[26px] font-semibold leading-none tracking-tight tabular-nums text-foreground">{value}</span>
           {hasDelta ? (
             <span
               className={cn(
@@ -58,8 +57,9 @@ export function KpiCard({ label, value, icon: Icon, tone = "info", delta, deltaU
               {formatDelta(delta!, deltaUnit)}
             </span>
           ) : null}
-          {hint ? <span className="min-w-0 truncate text-[10.5px] text-muted-foreground">{hint}</span> : null}
         </div>
+        <div className="mt-1.5 line-clamp-2 text-[11.5px] font-medium leading-tight text-foreground/80">{label}</div>
+        {hint ? <div className="mt-0.5 truncate text-[10.5px] leading-tight text-muted-foreground">{hint}</div> : null}
       </div>
     </div>
   );
