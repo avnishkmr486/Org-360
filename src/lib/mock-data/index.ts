@@ -21,7 +21,7 @@ import { buildUsersSeed } from "./users";
 
 import { ensureAccounts } from "@/lib/auth/accounts";
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 4;
 
 export function buildSeedDatabase(today: ISODate): Database {
   const nowIso = `${today}T06:00:00.000Z`;

@@ -46,6 +46,8 @@ interface PersistedState {
   tables: Omit<Database, "tasks">;
   changedTasks: ComplianceTask[];
   removedTaskIds: string[];
+  /** Set once the Back Office products and clients have been merged into this saved copy. */
+  ecoBackOfficeSeeded?: boolean;
 }
 
 let seedDb: Database | null = null;
@@ -68,6 +70,22 @@ let serverSnapshot: Database | null = null;
 export function getServerSnapshot(): Database {
   if (!serverSnapshot) serverSnapshot = getSeed(TODAY);
   return serverSnapshot;
+}
+
+/** Adds the seeded Back Office products/clients (and their links) that a saved copy doesn't have yet. Existing records are never changed. */
+function withBackOfficeSeed(db: Database, seed: Database): Database {
+  const isNew = (id: string) => id === "ECO-003" || /^ECO-00[3-6]$/.test(id) || /^ECO-1(1\d|2[0-7])$/.test(id);
+  const taken = new Set(db.ecoEntities.map((e) => `${e.typeId}|${e.name.toLowerCase()}`));
+  const have = new Set(db.ecoEntities.map((e) => e.id));
+  const add = seed.ecoEntities.filter((e) => isNew(e.id) && !have.has(e.id) && !taken.has(`${e.typeId}|${e.name.toLowerCase()}`));
+  if (!add.length) return db;
+  const types = new Set(db.ecoTypes.map((t) => t.id));
+  const ecoTypes = [...db.ecoTypes, ...seed.ecoTypes.filter((t) => !types.has(t.id) && add.some((e) => e.typeId === t.id))];
+  const ids = new Set([...have, ...add.map((e) => e.id)]);
+  const relIds = new Set(db.ecoRelations.map((r) => r.id));
+  const addIds = new Set(add.map((e) => e.id));
+  const rel = seed.ecoRelations.filter((r) => (addIds.has(r.fromId) || addIds.has(r.toId)) && ids.has(r.fromId) && ids.has(r.toId) && !relIds.has(r.id));
+  return { ...db, ecoTypes, ecoEntities: [...db.ecoEntities, ...add], ecoRelations: [...db.ecoRelations, ...rel] };
 }
 
 /** Rebuild the database from a saved state; null when it was saved by an incompatible version. */
@@ -105,6 +123,8 @@ function restore(saved: PersistedState): Database | null {
           const seeded = new Map(seed.employees.map((e) => [e.id, e.designationId ?? null]));
           db = { ...db, employees: db.employees.map((e) => (e.designationId === undefined ? { ...e, designationId: seeded.get(e.id) ?? null } : e)) };
         }
+        // The Back Office products and clients are added once to existing saved data — nothing already there is touched.
+        if (!saved.ecoBackOfficeSeeded) db = withBackOfficeSeed(db, seed);
         // Employees added before accounts existed get theirs now.
         return { ...db, users: ensureAccounts(db) };
       }
@@ -144,7 +164,7 @@ function snapshotState(): PersistedState | null {
     if (seedTaskIndex.get(t.id) !== t) changedTasks.push(t);
   }
   const removedTaskIds = [...seedTaskIndex.keys()].filter((id) => !present.has(id));
-  return { schemaVersion: SCHEMA_VERSION, seedDate, tables, changedTasks, removedTaskIds };
+  return { schemaVersion: SCHEMA_VERSION, seedDate, tables, changedTasks, removedTaskIds, ecoBackOfficeSeeded: true };
 }
 
 function persistNow() {
