@@ -16,6 +16,7 @@ import {
   Check,
   Database as DatabaseIcon,
   LayoutDashboard,
+  DatabaseBackup,
   Gauge,
   ImageIcon,
   Laptop,
@@ -45,6 +46,7 @@ import { DataManagementPanel } from "./data-management-section";
 import { MenuConfigPanel } from "./menu-config-section";
 import { KpiMasterPanel } from "./kpi-master-section";
 import { DashboardKpisPanel } from "./dashboard-kpis-section";
+import { BackupPanel } from "./backup-section";
 import { formatBytes } from "@/lib/utils/format";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +66,7 @@ const SECTIONS = [
   { id: "dashkpis", label: "Dashboard KPIs", icon: LayoutDashboard },
   { id: "kpis", label: "KPI Master", icon: Gauge },
   { id: "data", label: "Data Management", icon: DatabaseIcon },
+  { id: "backup", label: "Backup & Restore", icon: DatabaseBackup },
   { id: "danger", label: "Demo Data", icon: RefreshCcw },
 ] as const;
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -116,6 +119,7 @@ export function SettingsPage() {
           {section === "menu" && can("menu.configure") ? <MenuConfigPanel /> : null}
           {section === "dashkpis" && can("processes.configure_kpis") ? <DashboardKpisPanel /> : null}
           {section === "kpis" && can("processes.configure_kpis") ? <KpiMasterPanel /> : null}
+          {section === "backup" ? <BackupPanel readOnly={readOnly} /> : null}
           {section === "data" ? <DataManagementPanel readOnly={readOnly} /> : null}
           {section === "danger" ? <DangerSection readOnly={readOnly} /> : null}
         </div>

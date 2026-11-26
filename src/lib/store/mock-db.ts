@@ -92,7 +92,8 @@ function withBackOfficeSeed(db: Database, seed: Database): Database {
 function restore(saved: PersistedState): Database | null {
   {
     {
-      if (saved.schemaVersion === SCHEMA_VERSION && saved.seedDate) {
+      // Saved data from an older build is kept and migrated (tables it lacks start from the seed). Only data from a newer build is refused.
+      if (typeof saved.schemaVersion === "number" && saved.schemaVersion <= SCHEMA_VERSION && saved.seedDate && saved.tables) {
         const seed = getSeed(saved.seedDate);
         const removed = new Set(saved.removedTaskIds);
         const changed = new Map(saved.changedTasks.map((t) => [t.id, t]));
@@ -140,11 +141,113 @@ function load(): Database {
     if (raw) {
       const restored = restore(JSON.parse(raw) as PersistedState);
       if (restored) return restored;
+      saveBackup(raw, "Saved data this version could not read");
     }
   } catch (err) {
     console.warn("[org360] Could not restore saved demo data; using fresh seed.", err);
   }
   return getSeed(TODAY);
+}
+
+/* ---- Safety copies ------------------------------------------------------------------------ */
+// Whatever is about to be replaced is copied first, so a bad reset, version change or sync can always be undone.
+const BACKUP_INDEX = "org360:backups";
+const BACKUP_PREFIX = "org360:backup:";
+const BACKUP_MAX = 6;
+const AUTO_BACKUP_EVERY_MS = 30 * 60 * 1000;
+
+export interface BackupInfo {
+  key: string;
+  at: string;
+  reason: string;
+  employees: number;
+  bytes: number;
+}
+
+function readIndex(): BackupInfo[] {
+  try {
+    return JSON.parse(window.localStorage.getItem(BACKUP_INDEX) ?? "[]") as BackupInfo[];
+  } catch {
+    return [];
+  }
+}
+
+function employeesIn(raw: string): number {
+  try {
+    return ((JSON.parse(raw) as PersistedState).tables?.employees ?? []).length;
+  } catch {
+    return 0;
+  }
+}
+
+/** Keep a copy of `raw` (a saved state). Skips exact repeats; the copy with the most employees is never pruned. */
+function saveBackup(raw: string | null, reason: string) {
+  if (!isBrowser || !raw) return;
+  try {
+    const index = readIndex();
+    const last = index[0];
+    if (last && window.localStorage.getItem(last.key) === raw) return;
+    const info: BackupInfo = { key: `${BACKUP_PREFIX}${Date.now()}`, at: new Date().toISOString(), reason, employees: employeesIn(raw), bytes: raw.length };
+    window.localStorage.setItem(info.key, raw);
+    let next = [info, ...index];
+    while (next.length > BACKUP_MAX) {
+      const richest = next.reduce((a, b) => (b.employees > a.employees ? b : a));
+      const drop = [...next].reverse().find((b) => b.key !== richest.key && b !== info)!;
+      window.localStorage.removeItem(drop.key);
+      next = next.filter((b) => b.key !== drop.key);
+    }
+    window.localStorage.setItem(BACKUP_INDEX, JSON.stringify(next));
+  } catch (err) {
+    console.warn("[org360] Could not keep a safety copy (storage full?).", err);
+  }
+}
+
+let lastAutoBackup = 0;
+function autoBackup() {
+  if (Date.now() - lastAutoBackup < AUTO_BACKUP_EVERY_MS) return;
+  lastAutoBackup = Date.now();
+  try {
+    saveBackup(window.localStorage.getItem(STORAGE_KEY), "Automatic");
+  } catch {
+    /* ignore */
+  }
+}
+
+export function listBackups(): BackupInfo[] {
+  return isBrowser ? readIndex() : [];
+}
+
+/** The data as a JSON string, for downloading. */
+export function exportBackupJson(): string {
+  return JSON.stringify(snapshotState() ?? {}, null, 1);
+}
+
+function applyRaw(raw: string, label: string) {
+  let saved: PersistedState;
+  try {
+    saved = JSON.parse(raw) as PersistedState;
+  } catch {
+    throw new Error("That file isn't a valid backup.");
+  }
+  if (!saved?.tables || !Array.isArray(saved.tables.employees) || typeof saved.schemaVersion !== "number") throw new Error("That file isn't an Organization 360 backup.");
+  const db = restore(saved);
+  if (!db) throw new Error("That backup was made by a newer version of the app.");
+  saveBackup(window.localStorage.getItem(STORAGE_KEY) ?? JSON.stringify(snapshotState()), `Before restoring ${label}`);
+  current = db;
+  edited = true;
+  emit();
+  persistNow();
+}
+
+/** Replace everything with the contents of a backup file. Throws a readable error when the file is wrong. */
+export function restoreFromJson(text: string) {
+  applyRaw(text, "a file");
+}
+
+export function restoreBackup(key: string) {
+  const raw = window.localStorage.getItem(key);
+  if (!raw) throw new Error("That safety copy is no longer available.");
+  applyRaw(raw, "a safety copy");
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -171,6 +274,7 @@ function persistNow() {
   if (!isBrowser) return;
   const state = snapshotState();
   if (!state) return;
+  autoBackup();
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (err) {
@@ -212,6 +316,14 @@ function pullRemote() {
     .then((saved) => {
       // Unsent local changes (e.g. the page reloaded right after adding something) win over the shared copy and are sent on.
       const keepLocal = isDirty();
+      if (saved) {
+        saveBackup(JSON.stringify(saved), "Shared copy");
+        try {
+          saveBackup(window.localStorage.getItem(STORAGE_KEY), "This browser before syncing");
+        } catch {
+          /* ignore */
+        }
+      }
       if (saved && !edited && !keepLocal) {
         const db = restore(saved);
         if (db) {
@@ -226,7 +338,12 @@ function pullRemote() {
       }
       remoteReady = true;
       // First ever run against this project (or an incompatible saved version): publish what we have.
-      if (!saved || !restore(saved) || edited || keepLocal) scheduleRemotePush();
+      // A shared copy this build cannot read (made by a newer version) is left alone; it is never overwritten.
+      const unreadable = Boolean(saved) && !restore(saved as PersistedState);
+      if (unreadable) {
+        remoteReady = false;
+        console.warn("[org360] The shared copy was saved by a newer version; this browser will not overwrite it.");
+      } else if (!saved || edited || keepLocal) scheduleRemotePush();
     })
     .catch((err) => console.warn("[org360] Supabase unavailable; working on this browser's copy.", err));
 }
@@ -272,6 +389,7 @@ export function updateDb(recipe: (db: Database) => Partial<Database>): Database 
 export function resetDb(): void {
   if (isBrowser) {
     try {
+      saveBackup(window.localStorage.getItem(STORAGE_KEY), "Before reset");
       window.localStorage.removeItem(STORAGE_KEY);
     } catch {
       /* ignore */
