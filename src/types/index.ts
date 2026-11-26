@@ -532,6 +532,8 @@ export interface HubTile {
   tone: "success" | "warning" | "danger" | "info" | "teal" | "neutral";
 }
 
+export type DashboardKey = "executive" | "department" | "team";
+
 export interface AppSettings {
   thresholds: ComplianceThresholds;
   dateFormat: "dd MMM yyyy" | "dd/MM/yyyy" | "MM/dd/yyyy" | "yyyy-MM-dd";
@@ -552,6 +554,8 @@ export interface AppSettings {
   menuHidden?: Partial<Record<AppRole, string[]>>;
   /** Summary tiles on Process Management. Absent = the built-in set. */
   hubTiles?: HubTile[];
+  /** KPI tiles (ids from the dashboard KPI catalog, in order) per dashboard. Absent = the original set. */
+  dashboardKpis?: Partial<Record<DashboardKey, string[]>>;
   /** KPI columns a Super Admin added to a screen's table grid. */
   gridColumns?: GridColumn[];
   /** Values typed into those columns, keyed `${columnId}|${rowId}`. */

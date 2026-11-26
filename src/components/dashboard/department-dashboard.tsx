@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Activity, AlarmClock, Building2, ClipboardList, ShieldCheck, Users, UsersRound, Workflow } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
-import { KpiCard } from "@/components/common/kpi-card";
+import { DashboardKpiStrip } from "./dashboard-kpi-strip";
 import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/states";
 import { ChartCard } from "@/components/charts/chart-card";
@@ -136,16 +136,7 @@ export function DepartmentDashboard() {
         }
       />
 
-      <section className="kpi-strip" aria-label="Department KPIs">
-        <KpiCard label="Employees" value={k.activeEmployees} icon={Users} tone="info" hint={`${k.totalEmployees} incl. inactive`} href={`/employees?department=${dept.id}`} />
-        <KpiCard label="Teams" value={k.teams} icon={UsersRound} tone="neutral" hint="active" href={`/teams?department=${dept.id}`} />
-        <KpiCard label="Assigned Processes" value={m.processes.length} icon={Workflow} tone="teal" hint="with tasks in period" href={`/processes`} />
-        <KpiCard label="Overall Compliance" value={formatPercent(k.compliance.value)} icon={ShieldCheck} tone="info" delta={k.compliance.delta} hint="vs prev. period" href={`/compliance${q()}`} />
-        <KpiCard label="Participation" value={formatPercent(k.participation.value)} icon={Activity} tone="teal" delta={k.participation.delta} hint="submitted ≥ 1 task" />
-        <KpiCard label="Pending Tasks" value={pending.length} icon={ClipboardList} tone="warning" hint="open, not yet late" href={`/compliance${q()}`} />
-        <KpiCard label="Overdue Tasks" value={k.overdueTasks.value} icon={AlarmClock} tone="danger" delta={k.overdueTasks.delta} deltaUnit="" goodWhen="down" href={`/compliance${q({ status: "overdue" })}`} />
-        <KpiCard label="Awaiting Review" value={m.stats.awaitingReview} icon={ShieldCheck} tone="neutral" hint="submissions" href={`/compliance/approvals`} />
-      </section>
+      <DashboardKpiStrip dashboard="department" m={m} q={q} label="Department KPIs" />
 
       {m.stats.totalAssigned === 0 ? (
         <EmptyState title="No tasks in this period" description="Widen the date range or clear filters." />

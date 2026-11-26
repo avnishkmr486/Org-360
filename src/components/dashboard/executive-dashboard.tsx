@@ -4,25 +4,15 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Activity,
-  AlarmClock,
   ArrowRight,
-  BadgeCheck,
   BarChart3,
-  Building2,
-  ShieldCheck,
   TrendingDown,
   TrendingUp,
-  UserCheck,
-  Users,
-  UsersRound,
-  UserX,
-  Workflow,
   Lightbulb,
   AlertTriangle,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
-import { KpiCard } from "@/components/common/kpi-card";
+import { DashboardKpiStrip } from "./dashboard-kpi-strip";
 import { ExportMenu } from "@/components/common/export-menu";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/charts/chart-card";
@@ -43,7 +33,7 @@ import { getDashboardMetrics, type DashboardMetrics, type Insight } from "@/lib/
 import { getTier as getTierFor } from "@/lib/calculations/compliance";
 import { exportToExcel } from "@/lib/export/excel";
 import { exportToPdf } from "@/lib/export/pdf";
-import { formatDelta, formatNumber, formatPercent } from "@/lib/utils/format";
+import { formatDelta, formatPercent } from "@/lib/utils/format";
 import { formatRange } from "@/lib/utils/dates";
 import { cn } from "@/lib/utils";
 
@@ -140,19 +130,7 @@ export function ExecutiveDashboard() {
         filters={<AnalyticsFilterBar />}
       />
 
-      {/* KPI cards */}
-      <section className="kpi-strip" aria-label="Key performance indicators">
-        <KpiCard label="Total Employees" value={formatNumber(k.totalEmployees)} icon={Users} tone="info" hint="in current view" href={`/employees${q()}`} />
-        <KpiCard label="Active Employees" value={formatNumber(k.activeEmployees)} icon={UserCheck} tone="success" hint={`${k.totalEmployees - k.activeEmployees} on leave / inactive`} href={`/employees${q({ status: "active" })}`} />
-        <KpiCard label="Departments" value={k.departments} icon={Building2} tone="neutral" hint="active" href="/departments" />
-        <KpiCard label="Teams" value={k.teams} icon={UsersRound} tone="neutral" hint="active" href={`/teams${q()}`} />
-        <KpiCard label="Active Processes" value={k.activeProcesses} icon={Workflow} tone="teal" hint="with assignments in view" href={`/processes?status=active`} />
-        <KpiCard label="Overall Compliance" value={formatPercent(k.compliance.value)} icon={ShieldCheck} tone="info" delta={k.compliance.delta} hint="vs prev. period" href={`/compliance${q()}`} />
-        <KpiCard label="Employee Participation" value={formatPercent(k.participation.value)} icon={Activity} tone="teal" delta={k.participation.delta} hint="submitted ≥ 1 task" href={`/reports/participation${q()}`} />
-        <KpiCard label="Compliant Employees" value={k.compliantEmployees.value} icon={BadgeCheck} tone="success" delta={k.compliantEmployees.delta} deltaUnit="" hint={`≥ ${threshold}%`} href={`/performance${q({ tier: "compliant" })}`} />
-        <KpiCard label="Non-Compliant Employees" value={k.nonCompliantEmployees.value} icon={UserX} tone="danger" delta={k.nonCompliantEmployees.delta} deltaUnit="" goodWhen="down" hint={`< ${threshold}%`} href={`/performance${q({ tier: "noncompliant" })}`} />
-        <KpiCard label="Overdue Tasks" value={k.overdueTasks.value} icon={AlarmClock} tone="warning" delta={k.overdueTasks.delta} deltaUnit="" goodWhen="down" hint="vs prev. period" href={`/compliance${q({ status: "overdue" })}`} />
-      </section>
+      <DashboardKpiStrip dashboard="executive" m={m} q={q} label="Key performance indicators" />
 
       <InsightsStrip insights={m.insights} />
 

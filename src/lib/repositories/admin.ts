@@ -11,6 +11,7 @@ import type {
   FrequencyDefinition,
   GridColumn,
   HubTile,
+  DashboardKey,
   ProcessCategory,
   RecordStatus,
 } from "@/types";
@@ -174,6 +175,16 @@ export async function saveHubTiles(tiles: HubTile[]): Promise<void> {
   write((d) => ({
     patch: { settings: { ...d.settings, hubTiles: tiles.map((t) => ({ ...t, label: t.label.trim() })) } },
     audit: [auditEntry(d, "Settings", "KPIs Updated", "HUB-TILES", "Process Management KPIs", `Process Management now shows ${tiles.length} KPI${tiles.length === 1 ? "" : "s"}.`)],
+  }));
+}
+
+/** Super Admin: choose which KPI tiles a dashboard shows, and in what order. */
+export async function saveDashboardKpis(key: DashboardKey, ids: string[]): Promise<void> {
+  await latency();
+  if (!can(currentActor().role, "processes.configure_kpis")) throw new RepositoryError("Only a Super Admin can configure dashboard KPIs.");
+  write((d) => ({
+    patch: { settings: { ...d.settings, dashboardKpis: { ...d.settings.dashboardKpis, [key]: [...new Set(ids)] } } },
+    audit: [auditEntry(d, "Settings", "KPIs Updated", `DASH-${key}`, `${key} dashboard KPIs`, `The ${key} dashboard now shows ${ids.length} KPI tile${ids.length === 1 ? "" : "s"}.`)],
   }));
 }
 

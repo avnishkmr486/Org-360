@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { AlarmClock, ClipboardList, ShieldCheck, Users, UsersRound, Workflow } from "lucide-react";
+import { UsersRound } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
-import { KpiCard } from "@/components/common/kpi-card";
+import { DashboardKpiStrip } from "./dashboard-kpi-strip";
 import { ExportMenu } from "@/components/common/export-menu";
 import { EmptyState } from "@/components/common/states";
 import { TaskStatusBadge } from "@/components/common/badges";
@@ -173,14 +173,7 @@ export function TeamDashboard() {
         }
       />
 
-      <section className="kpi-strip" aria-label="Team KPIs">
-        <KpiCard label="Team Members" value={k.activeEmployees} icon={Users} tone="info" hint="active" href={`/teams/${team.id}`} />
-        <KpiCard label="Team Compliance" value={formatPercent(k.compliance.value)} icon={ShieldCheck} tone="info" delta={k.compliance.delta} hint="vs prev." href={`/compliance${q()}`} />
-        <KpiCard label="Participation" value={formatPercent(k.participation.value)} icon={UsersRound} tone="teal" delta={k.participation.delta} />
-        <KpiCard label="Assigned Processes" value={m.processes.length} icon={Workflow} tone="teal" hint="in period" href="/processes?tab=assignments" />
-        <KpiCard label="Pending Tasks" value={pending.length} icon={ClipboardList} tone="warning" hint="due ≤ 14 days" href={`/compliance${q()}`} />
-        <KpiCard label="Overdue Tasks" value={k.overdueTasks.value} icon={AlarmClock} tone="danger" delta={k.overdueTasks.delta} deltaUnit="" goodWhen="down" href={`/compliance${q({ status: "overdue" })}`} />
-      </section>
+      <DashboardKpiStrip dashboard="team" m={m} q={q} label="Team KPIs" />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard title="Employee-wise Compliance" description="Click an employee to open their profile">
