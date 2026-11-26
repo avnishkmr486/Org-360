@@ -257,7 +257,7 @@
   }
   .kpi-strip > * {
     flex: 1 1 0%;
-    min-width: 150px;
+    min-width: 175px;
   }
   .card-hover {
     @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.15)];

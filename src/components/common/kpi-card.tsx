@@ -38,17 +38,17 @@ export function KpiCard({ label, value, icon: Icon, tone = "info", delta, deltaU
       style={{ "--tile": TONE_VAR[tone] } as CSSProperties}
       title={typeof hint === "string" ? `${label} — ${hint}` : label}
     >
-      <span className="kpi-icon flex size-10 shrink-0 items-center justify-center rounded-[11px]">
-        <Icon className="size-5" />
+      <span className="kpi-icon flex size-11 shrink-0 items-center justify-center rounded-[11px]">
+        <Icon className="size-[22px]" />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[11.5px] font-medium leading-tight text-muted-foreground">{label}</div>
+        <div className="truncate text-[13px] font-medium leading-tight text-muted-foreground">{label}</div>
         <div className="mt-1 flex min-w-0 items-baseline gap-1.5">
-          <span className="shrink-0 text-[22px] font-semibold leading-tight tracking-tight tabular-nums text-foreground">{value}</span>
+          <span className="shrink-0 text-[30px] font-bold leading-tight tracking-tight tabular-nums text-foreground">{value}</span>
           {hasDelta ? (
             <span
               className={cn(
-                "inline-flex shrink-0 items-center gap-0.5 rounded-md px-1 py-px text-[10px] font-medium",
+                "inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium",
                 positive && "bg-success-soft text-success",
                 negative && "bg-danger-soft text-danger",
                 !positive && !negative && "bg-muted text-muted-foreground",
@@ -59,7 +59,7 @@ export function KpiCard({ label, value, icon: Icon, tone = "info", delta, deltaU
             </span>
           ) : null}
         </div>
-        {hint ? <div className="mt-0.5 truncate text-[10.5px] leading-tight text-muted-foreground">{hint}</div> : null}
+        {hint ? <div className="mt-0.5 truncate text-[12px] leading-tight text-muted-foreground">{hint}</div> : null}
       </div>
     </div>
   );
