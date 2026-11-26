@@ -15,6 +15,11 @@ const rows: Row[] = [
   ["ECO-001", "product", "Workforce Suite", 0, ["Priya Nair", "priya.nair@altametrics.example", "+1 555 0101"], "Scheduling, time and labor management for restaurants."],
   ["ECO-002", "product", "Inventory Pro", 1, ["Daniel Reyes", "daniel.reyes@altametrics.example", "+1 555 0102"], "Stock counts, ordering and waste tracking."],
 
+  ["ECO-003", "product", "Back Office", 2, null, "Back-office operations: labor, inventory and compliance in one place."],
+  ["ECO-004", "product", "Growth", 3, null, "Guest engagement and sales growth tools."],
+  ["ECO-005", "product", "Plum", 4, null, "Plum product line."],
+  ["ECO-006", "product", "BI", 5, null, "Business intelligence and analytics."],
+
   ["ECO-010", "module", "Scheduling", 2, null, "Shift planning and publishing."],
   ["ECO-011", "module", "Time & Attendance", 3, null, "Clock in/out, breaks and exceptions."],
   ["ECO-012", "module", "Payroll Export", 4, null, "Hours and wages to the payroll provider."],
@@ -41,6 +46,24 @@ const rows: Row[] = [
   ["ECO-105", "client", "Metro Pizza Works", 5, ["Vikram Rao", "vikram@metropizza.example", "+1 555 0205"], "Pizza delivery, 31 sites."],
   ["ECO-106", "client", "Lakeside Resorts", 6, null, "Resort group onboarding.", "planned"],
   ["ECO-107", "client", "Urban Bowl", 7, ["Chloe Martin", "chloe@urbanbowl.example", "+1 555 0207"], "Fast casual, 5 sites."],
+  ["ECO-110", "client", "CSC", 0, null, "Back Office client."],
+  ["ECO-111", "client", "JITB", 1, null, "Back Office client."],
+  ["ECO-112", "client", "LC", 2, null, "Back Office client."],
+  ["ECO-113", "client", "Outback", 3, null, "Back Office client."],
+  ["ECO-114", "client", "PeetsCoffee", 4, null, "Back Office client."],
+  ["ECO-115", "client", "Noodles", 5, null, "Back Office client."],
+  ["ECO-116", "client", "BWW", 6, null, "Back Office client."],
+  ["ECO-117", "client", "Arbys", 7, null, "Back Office client."],
+  ["ECO-118", "client", "Bobby Cox", 8, null, "Back Office client."],
+  ["ECO-119", "client", "Rosas Cafe", 0, null, "Back Office client."],
+  ["ECO-120", "client", "TACOBELL", 1, null, "Back Office client."],
+  ["ECO-121", "client", "DENNYS", 2, null, "Back Office client."],
+  ["ECO-122", "client", "CHIPOTLE", 3, null, "Back Office client."],
+  ["ECO-123", "client", "SNS", 4, null, "Back Office client."],
+  ["ECO-124", "client", "Mel.Mushroom", 5, null, "Back Office client."],
+  ["ECO-125", "client", "GOLDEN_CHICK", 6, null, "Back Office client."],
+  ["ECO-126", "client", "BOJANGLES", 7, null, "Back Office client."],
+  ["ECO-127", "client", "McDonalds", 8, null, "Back Office client."],
 ];
 
 const typeId = (k: string) => (k === "pos" ? "ETY-pos" : `ETY-${k}`);
@@ -80,6 +103,9 @@ const links: [string, string, string[]][] = [
   ["ECO-105", "runs on", ["ECO-030", "ECO-032"]],
   ["ECO-107", "runs on", ["ECO-031"]],
 ];
+
+// The clients added for Back Office all license it.
+for (let i = 0; i < 18; i++) links.push([`ECO-${110 + i}`, "licenses", ["ECO-003"]]);
 
 export function buildEcosystemSeed(employees: Employee[], nowIso: string): Pick<Database, "ecoTypes" | "ecoEntities" | "ecoRelations"> {
   const owners = employees.filter((e) => e.status !== "inactive");

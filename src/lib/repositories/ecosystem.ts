@@ -62,7 +62,14 @@ export interface EntityInput {
   contactEmail: string;
   contactPhone: string;
   notes: string;
+  /** Clients only: the products the client uses (at least one). Saved as "licenses" links. */
+  productIds?: string[];
 }
+
+/** The link label that ties a client to a product. */
+export const CLIENT_PRODUCT_LABEL = "licenses";
+
+const isType = (db: { ecoTypes: EcoType[] }, typeId: string, name: string) => db.ecoTypes.find((t) => t.id === typeId)?.name.toLowerCase() === name;
 
 export async function saveEntity(input: EntityInput): Promise<string> {
   await latency(200);
@@ -74,6 +81,9 @@ export async function saveEntity(input: EntityInput): Promise<string> {
   if (db.ecoEntities.some((e) => e.id !== input.id && e.typeId === input.typeId && e.name.toLowerCase() === name.toLowerCase())) throw new RepositoryError(`"${name}" already exists for this type.`);
   const email = clean(input.contactEmail);
   if (email && !/^\S+@\S+\.\S+$/.test(email)) throw new RepositoryError("The contact email doesn't look right.");
+  const isClient = isType(db, input.typeId, "client");
+  const productIds = [...new Set(input.productIds ?? [])].filter((pid) => db.ecoEntities.some((e) => e.id === pid && isType(db, e.typeId, "product")));
+  if (isClient && !productIds.length) throw new RepositoryError("Choose at least one product for this client.");
   const ts = nowIso();
   const fields = { typeId: input.typeId, name, description: clean(input.description), status: input.status, ownerId: input.ownerId, contactName: clean(input.contactName), contactEmail: email, contactPhone: clean(input.contactPhone), notes: clean(input.notes) };
   const id = input.id ?? uid("ECO");
@@ -81,8 +91,17 @@ export async function saveEntity(input: EntityInput): Promise<string> {
     const prev = d.ecoEntities.find((e) => e.id === input.id);
     if (input.id && !prev) throw new RepositoryError("That record no longer exists.");
     const next: EcoEntity = prev ? { ...prev, ...fields, updatedAt: ts } : { id, ...fields, createdAt: ts, updatedAt: ts };
+    // Keep the client's product links in step with the chosen products.
+    let relations = d.ecoRelations;
+    if (isClient) {
+      const productOf = (rid: string) => { const e = d.ecoEntities.find((x) => x.id === rid); return !!e && isType(d, e.typeId, "product"); };
+      const isProductLink = (r: { fromId: string; toId: string; label: string }) => r.fromId === id && r.label.toLowerCase() === CLIENT_PRODUCT_LABEL && productOf(r.toId);
+      relations = relations.filter((r) => !isProductLink(r) || productIds.includes(r.toId));
+      const have = new Set(relations.filter(isProductLink).map((r) => r.toId));
+      relations = [...relations, ...productIds.filter((pid) => !have.has(pid)).map((pid) => ({ id: uid("REL"), fromId: id, toId: pid, label: CLIENT_PRODUCT_LABEL, note: "", createdAt: ts }))];
+    }
     return {
-      patch: { ecoEntities: prev ? d.ecoEntities.map((e) => (e.id === id ? next : e)) : [...d.ecoEntities, next] },
+      patch: { ecoEntities: prev ? d.ecoEntities.map((e) => (e.id === id ? next : e)) : [...d.ecoEntities, next], ecoRelations: relations },
       audit: [auditEntry(d, "Ecosystem", prev ? "Updated" : "Created", id, name, `${prev ? "Updated" : "Added"} ${d.ecoTypes.find((t) => t.id === fields.typeId)?.name ?? "entry"} "${name}".`)],
     };
   });

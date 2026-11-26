@@ -64,6 +64,11 @@ function EntityForm({ entity, defaultTypeId, onClose, onSaved }: { entity: EcoEn
   const [description, setDescription] = useState(entity?.description ?? "");
   const [notes, setNotes] = useState(entity?.notes ?? "");
   const [saving, setSaving] = useState(false);
+  const isProduct = (id: string) => db.ecoTypes.find((t) => t.id === db.ecoEntities.find((e) => e.id === id)?.typeId)?.name.toLowerCase() === "product";
+  const [productIds, setProductIds] = useState<string[]>(() =>
+    entity ? db.ecoRelations.filter((r) => r.fromId === entity.id && r.label.toLowerCase() === "licenses" && isProduct(r.toId)).map((r) => r.toId) : [],
+  );
+  const productOptions = db.ecoEntities.filter((e) => db.ecoTypes.find((t) => t.id === e.typeId)?.name.toLowerCase() === "product").map((e) => ({ value: e.id, label: e.name }));
   const typeName = db.ecoTypes.find((t) => t.id === typeId)?.name ?? "entry";
   const people = db.employees.filter((e) => e.status !== "inactive" || e.id === entity?.ownerId).map((e) => ({ value: e.id, label: `${e.firstName} ${e.lastName}`, hint: e.id }));
 
@@ -75,7 +80,7 @@ function EntityForm({ entity, defaultTypeId, onClose, onSaved }: { entity: EcoEn
         if (!typeId) return toast.error("Choose a type.");
         setSaving(true);
         try {
-          const id = await saveEntity({ id: entity?.id, typeId, name, description, status, ownerId, contactName, contactEmail, contactPhone, notes });
+          const id = await saveEntity({ id: entity?.id, typeId, name, description, status, ownerId, contactName, contactEmail, contactPhone, notes, productIds });
           toast.success(entity ? "Saved" : `${typeName} added`, { description: name });
           onClose();
           onSaved?.(id);
@@ -111,6 +116,11 @@ function EntityForm({ entity, defaultTypeId, onClose, onSaved }: { entity: EcoEn
         <F label="Name" className="sm:col-span-2">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={`Name of the ${typeName.toLowerCase()}`} required autoFocus />
         </F>
+        {typeName.toLowerCase() === "client" ? (
+          <F label="Products (one or many)" className="sm:col-span-2">
+            <MultiSelect values={productIds} onChange={setProductIds} options={productOptions} placeholder="Select the products this client uses" searchPlaceholder="Search products…" />
+          </F>
+        ) : null}
         <F label="Owner (our side)" className="sm:col-span-2">
           <Combobox value={ownerId} onChange={setOwnerId} options={people} placeholder="Who owns this?" searchPlaceholder="Search employees…" />
         </F>

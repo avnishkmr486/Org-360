@@ -487,6 +487,27 @@ async function main() {
 
   console.log("Ecosystem");
   resetDb();
+  await test("clients belong to one or many products; Back Office clients are seeded", async () => {
+    const byName = (n: string) => getDb().ecoEntities.find((e) => e.name === n)!;
+    const typeName = (id: string) => getDb().ecoTypes.find((t) => t.id === id)?.name;
+    const products = ["Back Office", "Growth", "Plum", "BI"].map(byName);
+    assert.ok(products.every((p) => typeName(p.typeId) === "Product"));
+    const backOffice = byName("Back Office");
+    for (const n of ["CSC", "JITB", "LC", "Outback", "PeetsCoffee", "Noodles", "BWW", "Arbys", "Bobby Cox", "Rosas Cafe", "TACOBELL", "DENNYS", "CHIPOTLE", "SNS", "Mel.Mushroom", "GOLDEN_CHICK", "BOJANGLES", "McDonalds"]) {
+      const c = byName(n);
+      assert.equal(typeName(c.typeId), "Client");
+      assert.ok(getDb().ecoRelations.some((r) => r.fromId === c.id && r.toId === backOffice.id), `${n} is linked to Back Office`);
+    }
+    const clientType = getDb().ecoTypes.find((t) => t.name === "Client")!.id;
+    const base = { typeId: clientType, description: "", status: "active" as const, ownerId: null, contactName: "", contactEmail: "", contactPhone: "", notes: "" };
+    await assert.rejects(repo.saveEntity({ ...base, name: "Test Client" }), /at least one product/);
+    const id = await repo.saveEntity({ ...base, name: "Test Client", productIds: [backOffice.id, byName("BI").id] });
+    const linked = () => getDb().ecoRelations.filter((r) => r.fromId === id).map((r) => r.toId).sort();
+    assert.deepEqual(linked(), [backOffice.id, byName("BI").id].sort());
+    await repo.saveEntity({ ...base, id, name: "Test Client", productIds: [byName("Growth").id] });
+    assert.deepEqual(linked(), [byName("Growth").id]);
+    resetDb();
+  });
   await test("entries link freely in any direction, answer who-uses-what, and deleting cleans up", async () => {
     const { setUiState } = await import("@/lib/store/ui-store");
     const { groupLinksByType, usageMatrix, ecosystemStats, referencesTo } = await import("@/lib/calculations/ecosystem");
