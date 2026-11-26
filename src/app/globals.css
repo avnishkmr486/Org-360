@@ -249,19 +249,15 @@
   /* Tiles always sit in one row; on narrow screens the row scrolls sideways. */
   .kpi-strip {
     display: flex;
-    align-items: flex-start; /* don't stretch: lets aspect-ratio set the height */
-    gap: 0.75rem;
+    gap: 0.625rem;
     overflow-x: auto;
     padding: 2px 2px 6px;
     margin: -2px -2px -6px;
     scrollbar-width: thin;
   }
-  /* Square tiles: width drives height via aspect-ratio. */
   .kpi-strip > * {
     flex: 1 1 0%;
-    min-width: 148px;
-    max-width: 200px;
-    aspect-ratio: 1 / 1;
+    min-width: 150px;
   }
   .card-hover {
     @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.15)];
