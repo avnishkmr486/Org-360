@@ -25,8 +25,20 @@ async function md5(s: string) {
 async function call(params: Record<string, string>, method: "GET" | "POST" = "GET") {
   const url = `${BASE}/webservice.php`;
   const qs = new URLSearchParams(params);
-  const res = method === "GET" ? await fetch(`${url}?${qs}`) : await fetch(url, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: qs });
-  const data = await res.json();
+  const signal = AbortSignal.timeout(15000);
+  let res: Response;
+  try {
+    res = method === "GET" ? await fetch(`${url}?${qs}`, { signal }) : await fetch(url, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: qs, signal });
+  } catch (e) {
+    throw new Error(`Could not reach ${BASE}/webservice.php (${e instanceof Error ? e.message : e}). Check VTIGER_URL and that the portal is reachable from the internet.`);
+  }
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(`VTiger returned a non-JSON response (HTTP ${res.status}). Check VTIGER_URL points at the VTiger root: ${text.slice(0, 80)}`);
+  }
   if (!data.success) throw new Error(data.error?.message ?? "VTiger request failed");
   return data.result;
 }

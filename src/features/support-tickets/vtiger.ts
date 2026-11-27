@@ -31,7 +31,12 @@ export const isClosed = (t: Pick<Ticket, "status">) => CLOSED_STATUSES.includes(
 
 export async function fetchTickets(): Promise<TicketFeed> {
   if (!BASE || !KEY) throw new Error("Supabase is not configured for this deployment.");
-  const res = await fetch(`${BASE}/functions/v1/vtiger-tickets`, { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` }, cache: "no-store" });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/functions/v1/vtiger-tickets`, { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` }, cache: "no-store", signal: AbortSignal.timeout(60000) });
+  } catch {
+    throw new Error("The VTiger function did not respond in time. Check its Logs in Supabase and the VTIGER_URL secret.");
+  }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body?.error ?? `VTiger proxy failed (${res.status})`);
   return body as TicketFeed;
