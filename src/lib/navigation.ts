@@ -5,6 +5,7 @@ import {
   Database as DatabaseIcon,
   HardDrive,
   LayoutDashboard,
+  LifeBuoy,
   Network,
   ScrollText,
   Settings,
@@ -102,6 +103,10 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "Business",
     items: [{ title: "Ecosystem", href: "/ecosystem", icon: Share2, roles: MANAGERS }],
+  },
+  {
+    label: "Support",
+    items: [{ title: "Support Tickets", href: "/support-tickets", icon: LifeBuoy, roles: MANAGERS }],
   },
   {
     label: "Administration",
